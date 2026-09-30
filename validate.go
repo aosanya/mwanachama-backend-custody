@@ -86,9 +86,6 @@ func declares(values []string, s string) bool {
 	return false
 }
 
-// declaredValues returns a declared enum's values in the order the blueprint
-// lists them, which is the order the log draws its filter chips. The order
-// is data, so nothing here keeps a second copy of it.
 func declaredValues(o spec.Object, column string) []string {
 	for _, f := range o.Fields {
 		if f.Name == column {

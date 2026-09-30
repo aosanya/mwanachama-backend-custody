@@ -26,13 +26,6 @@ func NewConsentStore(db *gorm.DB, s *spec.Spec) (*ConsentStore, error) {
 	return &ConsentStore{db: db, st: st}, nil
 }
 
-// CreateVersion inserts a new, unpublished version. A version is created
-// unpublished whatever the caller supplied: PublishVersion is the only writer
-// of those three fields, and the in-force rule derives from two of them with
-// no guard of its own, so a caller-supplied value would put text into force
-// without the act that authorises it. The (scope, version, language) triple
-// is a unique index, so a second row with the same one returns ErrConflict
-// through classify rather than a pre-check racing a concurrent insert.
 func (s *ConsentStore) CreateVersion(ctx context.Context, v models.TextVersion) (models.TextVersion, error) {
 	v.PublishedAt, v.PublishedBy, v.SupersededAt = nil, "", nil
 	v.CopiedMechanicsID = ""
@@ -48,9 +41,6 @@ func (s *ConsentStore) CreateVersion(ctx context.Context, v models.TextVersion) 
 	return v, nil
 }
 
-// PublishVersion stamps published_at and published_by, and supersedes
-// whichever version was in force for the same scope and language, inside one
-// transaction so the two writes are atomic.
 func (s *ConsentStore) PublishVersion(ctx context.Context, id, publishedBy string, now string) (models.TextVersion, error) {
 	if now == "" {
 		now = models.Now()
@@ -105,9 +95,6 @@ func (s *ConsentStore) GetInForce(ctx context.Context, scope models.ConsentScope
 	return out, nil
 }
 
-// ListVersions returns every version for a scope and language, newest
-// published_at first with unpublished rows last. Postgres needs NULLS LAST
-// spelled out; sqlite has no such syntax, so that dialect sorts in Go.
 func (s *ConsentStore) ListVersions(ctx context.Context, scope models.ConsentScope, language models.Language) ([]models.TextVersion, error) {
 	q := s.st.Query(ctx, RoleConsentVersion).
 		Where("scope = ? AND language = ?", string(scope), string(language))
@@ -134,9 +121,6 @@ func sortTextVersionsNewestFirst(out []models.TextVersion) {
 	}
 }
 
-// textVersionLess reports whether a sorts before b: greatest published_at
-// first, unpublished rows last, ties broken by id. The instants are RFC 3339
-// in UTC, so comparing them as text compares them chronologically.
 func textVersionLess(a, b models.TextVersion) bool {
 	switch {
 	case a.PublishedAt == nil && b.PublishedAt == nil:

@@ -17,8 +17,6 @@ const (
 	maxCustodyLogPage = 500
 )
 
-// ScopeResolver walks a structure's descendant closure. It is an externally
-// supplied fact: this module has no structure hierarchy of its own.
 type ScopeResolver interface {
 	Subtree(ctx context.Context, structureID string) ([]string, error)
 }
@@ -62,8 +60,6 @@ func (m *CustodyManager) Export() models.ExportRepository   { return m.export }
 func (m *CustodyManager) Contact() models.ContactRepository { return m.contact }
 func (m *CustodyManager) Consent() models.ConsentRepository { return m.consent }
 
-// actLogScope turns the requested scope into the structure list the store
-// filters on. An unknown scope is refused rather than silently narrowed.
 func (m *CustodyManager) actLogScope(ctx context.Context, structureID, scope string) ([]string, error) {
 	switch scope {
 	case "", "structure":
@@ -213,10 +209,6 @@ func (m *CustodyManager) GetConsentVersion(ctx context.Context, versionID string
 	return m.consent.GetVersion(ctx, versionID)
 }
 
-// ConsentVersionInput is the wire shape a version is created from.
-// PublishedAt, PublishedBy, SupersededAt and CopiedMechanicsID are absent on
-// purpose: they are written only by a publish, and accepting them would let a
-// caller mint text already in force, naming a publisher who never published.
 type ConsentVersionInput struct {
 	ID         string                   `json:"id"`
 	Scope      models.ConsentScope      `json:"scope"`

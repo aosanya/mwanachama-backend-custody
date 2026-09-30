@@ -58,10 +58,6 @@ func decode(o spec.Object, row map[string]any, out any) error {
 	return specstore.Decode(o, row, out)
 }
 
-// nextSequenceID mints the monotonic key the two append-only logs order by
-// after occurred_at. spec declares the column and nothing more, so the value
-// comes from a Postgres SEQUENCE where there is one, and from the table's own
-// high-water mark on sqlite, which is tests only and single-writer there.
 func nextSequenceID(tx *gorm.DB, table, sequence string) (int64, error) {
 	if tx.Dialector.Name() == "postgres" {
 		var n int64

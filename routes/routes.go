@@ -23,12 +23,6 @@ var sentinels = map[string]error{
 	"ErrNotSelf":             custody.ErrNotSelf,
 }
 
-// AnonymousActions is every operation reachable without presenting a caller.
-// It is empty: nothing in an audit trail is public, and this module has
-// never carried a gate of its own — whatever mounts it supplies the
-// Authorizer. It is the allowlist Split is taken over, never the list of
-// what is protected, so an operation added to the spec and not named here
-// arrives gated.
 var AnonymousActions = []string{}
 
 type Mount struct {

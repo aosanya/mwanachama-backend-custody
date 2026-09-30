@@ -4,10 +4,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-custody/models"
 )
 
-// actLogJSON renders entries for the wire rather than tagging the domain
-// struct: ActorID empty means the timer, a real state a client draws
-// differently from a missing field, and a struct tag would make the two move
-// together by accident.
 func actLogJSON(entries []models.StructureActLogEntry) []map[string]any {
 	out := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {

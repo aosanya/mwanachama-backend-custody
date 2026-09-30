@@ -89,9 +89,6 @@ func (s *ExportStore) queryJobs(q *gorm.DB) ([]models.Job, error) {
 	return out, nil
 }
 
-// Progress records a build's advance. ResumedFromPct is write-once and the
-// guard is in the UPDATE's WHERE clause rather than a read-then-write, so
-// two workers racing cannot both believe they recorded the first figure.
 func (s *ExportStore) Progress(ctx context.Context, id string, p models.ProgressUpdate) (models.Job, error) {
 	if err := p.Validate(); err != nil {
 		return models.Job{}, err
@@ -168,9 +165,6 @@ func (s *ExportStore) Complete(ctx context.Context, id string, c models.Completi
 	return s.Get(ctx, id)
 }
 
-// MarkFileRemoved stamps file_removed_at and keeps the row. There is no
-// DELETE anywhere in this file, which is how "the row is never deleted"
-// survives: no caller can express it.
 func (s *ExportStore) MarkFileRemoved(ctx context.Context, id string, at string) (models.Job, error) {
 	if at == "" {
 		at = models.FormatTime(s.clock())

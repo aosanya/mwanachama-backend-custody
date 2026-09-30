@@ -15,10 +15,6 @@ func Provision(db *gorm.DB, s *spec.Spec) error {
 	return spec.Migrate(db, s)
 }
 
-// createSequences backs the two append-only logs' monotonic keys. spec
-// declares the column and nothing more, so the value comes from a sequence
-// where the dialect has one; sqlite reads the table's high-water mark
-// instead and needs nothing here.
 func createSequences(db *gorm.DB, s *spec.Spec) error {
 	if db.Dialector.Name() != "postgres" {
 		return nil

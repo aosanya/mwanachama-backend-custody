@@ -7,8 +7,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-custody/models"
 )
 
-// ErrNoMechanicsInForce is returned by Enroll when no mechanics version has
-// ever been published in the requested language.
 var ErrNoMechanicsInForce = errors.New("mwanachamacustody: no mechanics version in force for this language")
 
 func Enroll(ctx context.Context, repo models.ConsentRepository, actorID, structureID string, language models.Language, now string) (models.Record, error) {
@@ -33,7 +31,6 @@ func Enroll(ctx context.Context, repo models.ConsentRepository, actorID, structu
 	case err == nil:
 		rec.AppendixVersionID = appendix.ID
 	case errors.Is(err, models.ErrNotFound):
-		// No appendix published yet — a real, nullable state, not a failure.
 	default:
 		return models.Record{}, err
 	}
