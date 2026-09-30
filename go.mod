@@ -3,6 +3,7 @@ module github.com/aosanya/mwanachama-backend-custody
 go 1.25.0
 
 require (
+	github.com/aosanya/mwanachama-backend-shared v0.0.0-00010101000000-000000000000
 	github.com/glebarez/sqlite v1.11.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
@@ -24,9 +25,10 @@ require (
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	gorm.io/driver/mysql v1.5.6 // indirect
-	gorm.io/driver/postgres v1.6.2 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.23.1 // indirect
 )
+
+replace github.com/aosanya/mwanachama-backend-shared => ../mwanachama-backend-shared

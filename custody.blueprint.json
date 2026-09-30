@@ -1,0 +1,536 @@
+{
+  "module": "custody",
+  "objects": [
+    {
+      "role": "structure_act",
+      "description": "One entry in a structure's own record of what its leadership did. Append-only: read newest-first, never re-ordered, never updated and never deleted.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "int",
+          "description": "Monotonic storage key, minted from a sequence. It is the tiebreaker when two acts share an instant, so it must increase with time.",
+          "primary": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure whose log this entry belongs to. Required: an act with no structure has no log to land in.",
+          "required": true
+        },
+        {
+          "name": "occurred_at",
+          "type": "timestamp",
+          "description": "When the act happened, which is not when the row was written. The primary sort key.",
+          "required": true
+        },
+        {
+          "name": "kind",
+          "type": "enum",
+          "description": "What was done. Every kind carries a class; a kind with no class arm is refused at the write rather than landing with a null class.",
+          "required": true,
+          "values": [
+            "post_withheld",
+            "post_restored",
+            "report_left_standing",
+            "removal_left_standing",
+            "role_granted",
+            "role_revoked",
+            "case_escalated",
+            "transferred_out",
+            "transferred_in",
+            "left_structure",
+            "membership_ended",
+            "structure_retired",
+            "answer_read_named",
+            "check_started"
+          ]
+        },
+        {
+          "name": "class",
+          "type": "enum",
+          "description": "The filter grouping this kind belongs to. Stored rather than computed at read time so filtering by it is an index scan.",
+          "required": true,
+          "values": [
+            "moderation",
+            "roles",
+            "escalations",
+            "membership",
+            "structure",
+            "intelligence"
+          ]
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "Who acted. Empty means the timer acted, which is a real state rather than a missing value."
+        },
+        {
+          "name": "actor_label",
+          "type": "string",
+          "description": "The actor's name and role class as they read at the time, so the row keeps rendering after either changes."
+        },
+        {
+          "name": "actor_structure_id",
+          "type": "string",
+          "description": "The structure the actor was acting from, which is not always the structure the log belongs to."
+        },
+        {
+          "name": "subject_ref",
+          "type": "string",
+          "description": "What the entry is about as the reader sees it. Text rather than a foreign key, so it keeps rendering after the object is retired, re-parented or revoked."
+        },
+        {
+          "name": "subject_id",
+          "type": "string",
+          "description": "The subject object's id where one exists. Loose on purpose: the log outlives what it describes."
+        },
+        {
+          "name": "detail",
+          "type": "json",
+          "description": "The composed human sentence and its structured keys. Absence must round-trip as a true null, because two years after occurred_at the free-text keys are stripped and an empty object would make an aged-out row look like it still carried them."
+        },
+        {
+          "name": "escalation_level",
+          "type": "int",
+          "description": "How far a case was escalated. Set on case_escalated only, so null is the ordinary state.",
+          "nullable": true
+        },
+        {
+          "name": "to_structure_id",
+          "type": "string",
+          "description": "The structure a transfer or escalation went to."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "structure_newest",
+          "description": "The log's own read: one structure's entries, newest first.",
+          "fields": ["structure_id", "occurred_at"]
+        },
+        {
+          "name": "class_since",
+          "description": "The per-class tally over a window, and the class filter on the log itself.",
+          "fields": ["class", "occurred_at"]
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "description": "One entry in the organization's audit trail of everything done to its data as data. Append-only, for structure_act's reason.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "int",
+          "description": "Monotonic storage key, minted from a sequence. The tiebreaker within one instant, and the key GetEvent reads by.",
+          "primary": true
+        },
+        {
+          "name": "occurred_at",
+          "type": "timestamp",
+          "description": "When it happened. The primary sort key.",
+          "required": true
+        },
+        {
+          "name": "kind",
+          "type": "enum",
+          "description": "What was done to the organization's data. Every kind reaches a chip; one that reaches none is refused at the write.",
+          "required": true,
+          "values": [
+            "export_started",
+            "export_interrupted",
+            "export_resumed",
+            "export_completed",
+            "keys_rotated",
+            "id_key_generated",
+            "id_key_backup_confirmed",
+            "phone_salt_rotated",
+            "replica_disconnected",
+            "replica_reconnected",
+            "snapshot_completed",
+            "provisioned",
+            "release_rolled_out",
+            "rollout_failed",
+            "agreement_signed",
+            "handover_completed",
+            "credential_changed",
+            "wind_down_initiated",
+            "vendor_access_revoked",
+            "break_glass_write",
+            "agreement_field_corrected",
+            "help_line_changed",
+            "organization_setup_completed",
+            "capabilities_changed",
+            "role_kind_retired",
+            "role_kind_unretired",
+            "discard_taken_over",
+            "survey_option_added",
+            "survey_question_versioned",
+            "themes_recomputed"
+          ]
+        },
+        {
+          "name": "chip",
+          "type": "enum",
+          "description": "The filter grouping this kind reaches. Stored rather than computed, for class's reason.",
+          "required": true,
+          "values": [
+            "exports",
+            "keys",
+            "replica_events",
+            "platform",
+            "organization",
+            "themes"
+          ]
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "Who acted. Empty means the system, or a vendor operator who has no row in this database at all."
+        },
+        {
+          "name": "actor_label",
+          "type": "string",
+          "description": "The actor's name as it read at the time."
+        },
+        {
+          "name": "detail",
+          "type": "text",
+          "description": "The human sentence. Prose rather than a document, unlike a structure act's detail."
+        },
+        {
+          "name": "evidence",
+          "type": "json",
+          "description": "The checkable artifact: a checksum, a key-id transition, a duration, a diff. Absence must round-trip as a true null, so a row with none is drawn as an em dash rather than as an empty object."
+        },
+        {
+          "name": "subject_id",
+          "type": "string",
+          "description": "What the entry is about, loosely."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "chip_newest",
+          "description": "The log's read, narrowed to a chip, and the per-chip tally over a window.",
+          "fields": ["chip", "occurred_at"]
+        }
+      ]
+    },
+    {
+      "role": "export_job",
+      "description": "One export build, either the organization's own register or one actor's self-export. The row is never deleted, even once its file is gone.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers and always minted by the store.",
+          "primary": true
+        },
+        {
+          "name": "scope",
+          "type": "enum",
+          "description": "Which of the two exports this is. Every rule on a job branches on it, and a job is one or the other and never both.",
+          "required": true,
+          "values": ["organization", "actor"]
+        },
+        {
+          "name": "subject_actor_id",
+          "type": "string",
+          "description": "Whose data the file holds, at actor scope. Required there and refused at organization scope."
+        },
+        {
+          "name": "requested_by",
+          "type": "string",
+          "description": "The administrator who asked for it, at organization scope only. An administrator is never the requester of an actor's own export."
+        },
+        {
+          "name": "requested_at",
+          "type": "timestamp",
+          "description": "When it was asked for.",
+          "required": true
+        },
+        {
+          "name": "snapshot_at",
+          "type": "timestamp",
+          "description": "The instant the build reads from. Never defaulted from requested_at: a zero here is a build that would read now() instead of one instant.",
+          "required": true
+        },
+        {
+          "name": "include_ids",
+          "type": "bool",
+          "description": "Whether identity numbers are in the file. Refused at actor scope in any form."
+        },
+        {
+          "name": "format",
+          "type": "enum",
+          "description": "How the file is written. An actor's export is always csv_zip, because a pg_dump of one actor's rows is a format only the organization could open.",
+          "required": true,
+          "values": ["pg_dump", "csv_zip"]
+        },
+        {
+          "name": "datasets",
+          "type": "json",
+          "description": "Which datasets the file covers, as a list of names."
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "description": "Where the build is. interrupted is a first-class state rather than an absence — it is what lets a resume be a resume.",
+          "required": true,
+          "values": ["building", "interrupted", "completed", "failed"]
+        },
+        {
+          "name": "progress_pct",
+          "type": "int",
+          "description": "How far the build has got, 0..100. Live while building and null before it starts.",
+          "nullable": true
+        },
+        {
+          "name": "resumed_from_pct",
+          "type": "int",
+          "description": "The percentage this run continued from, 0..100. Write-once: it is the evidence for 'continued from 68 per cent, not restarted', so a second interruption must not re-label the job a fresh one.",
+          "nullable": true
+        },
+        {
+          "name": "row_counts",
+          "type": "json",
+          "description": "The per-dataset tally so far, as a map of dataset name to count. Replaced on each advance rather than merged."
+        },
+        {
+          "name": "bytes",
+          "type": "int",
+          "description": "The finished file's size. Null until it completes.",
+          "nullable": true
+        },
+        {
+          "name": "checksum",
+          "type": "string",
+          "description": "What the collected file is verified against. A completion without one is not a completion."
+        },
+        {
+          "name": "storage_path",
+          "type": "string",
+          "description": "Where the file was written."
+        },
+        {
+          "name": "file_removed_at",
+          "type": "timestamp",
+          "description": "When the file was removed. Null while it is still there; the row itself survives either way.",
+          "nullable": true
+        },
+        {
+          "name": "file_removed_due_at",
+          "type": "timestamp",
+          "description": "When the file becomes due for removal, which is always snapshot_at plus the retention window.",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "scope_newest",
+          "description": "The organization's listing and one actor's listing, both newest first.",
+          "fields": ["scope", "subject_actor_id", "requested_at"]
+        },
+        {
+          "name": "removal_sweep",
+          "description": "The retention worker's walk: files past their due date and not yet removed, oldest first.",
+          "fields": ["file_removed_due_at"]
+        }
+      ]
+    },
+    {
+      "role": "contact_read",
+      "description": "The record of an operator viewing an actor's contact details. An event rather than a counter: two reads by one operator are two rows.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers and always minted by the store.",
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "Whose contact details were read.",
+          "required": true
+        },
+        {
+          "name": "read_by",
+          "type": "string",
+          "description": "The operator who spent the capability.",
+          "required": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure the operator was acting from."
+        },
+        {
+          "name": "read_at",
+          "type": "timestamp",
+          "description": "When, to the minute.",
+          "required": true
+        },
+        {
+          "name": "notified_at",
+          "type": "timestamp",
+          "description": "When the subject was told. Null until they are.",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "subject_newest",
+          "description": "The subject's own view of who read their details, newest first.",
+          "fields": ["actor_id", "read_at"]
+        },
+        {
+          "name": "operator_newest",
+          "description": "The operator's own side, scoped to themselves.",
+          "fields": ["read_by", "read_at"]
+        }
+      ]
+    },
+    {
+      "role": "consent_version",
+      "description": "One rendering of one half of the consent sheet, at one version in one language. A version is a fact once published and is never edited in place.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers and always minted by the store.",
+          "primary": true
+        },
+        {
+          "name": "scope",
+          "type": "enum",
+          "description": "Which half of the sheet this version belongs to.",
+          "required": true,
+          "values": ["mechanics", "appendix", "public_sheet"]
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "description": "The version label, unique within a scope and language.",
+          "required": true
+        },
+        {
+          "name": "language",
+          "type": "enum",
+          "description": "The language this rendering is in.",
+          "required": true,
+          "values": ["en", "sw", "luo"]
+        },
+        {
+          "name": "clauses",
+          "type": "json",
+          "description": "The clause list, each with a key and its text. A key is stable across versions of the same scope, so a reword reads as a change to that clause rather than a delete plus an insert."
+        },
+        {
+          "name": "effect",
+          "type": "json",
+          "description": "How each clause changed against the immediately prior version in the same language, as a map of clause key to strengthens, neutral or weakens."
+        },
+        {
+          "name": "translated",
+          "type": "bool",
+          "description": "Whether this rendering has been translated rather than drafted."
+        },
+        {
+          "name": "release_ref",
+          "type": "string",
+          "description": "The release this version shipped with."
+        },
+        {
+          "name": "copied_mechanics_id",
+          "type": "string",
+          "description": "The mechanics version this one was copied from, where it was."
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp",
+          "description": "When it came into force. Null means unpublished, which is an ordinary state rather than an exceptional one.",
+          "nullable": true
+        },
+        {
+          "name": "published_by",
+          "type": "string",
+          "description": "Who published it."
+        },
+        {
+          "name": "superseded_at",
+          "type": "timestamp",
+          "description": "When a later version took its place. Null on the version currently in force.",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "natural_key",
+          "description": "Scope, version and language together are the natural key. A database constraint rather than a pre-check, so a concurrent caller loses the race in the database instead of slipping past a read-then-write.",
+          "fields": ["scope", "version", "language"],
+          "unique": true
+        },
+        {
+          "name": "in_force",
+          "description": "The version currently in force for a scope and language: the greatest published_at with no superseded_at.",
+          "fields": ["scope", "language", "published_at"]
+        }
+      ]
+    },
+    {
+      "role": "consent_record",
+      "description": "One actor's acceptance of the consent sheet. Immutable: never updated and never deleted.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers and always minted by the store.",
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "Who agreed.",
+          "required": true
+        },
+        {
+          "name": "mechanics_version_id",
+          "type": "string",
+          "description": "The mechanics version they agreed to. Must name a real version.",
+          "required": true
+        },
+        {
+          "name": "appendix_version_id",
+          "type": "string",
+          "description": "The appendix version they agreed to, where one is published. Empty is a one-half sheet, which is what an organization that has published no appendix has."
+        },
+        {
+          "name": "agreed_at",
+          "type": "timestamp",
+          "description": "When they agreed.",
+          "required": true
+        },
+        {
+          "name": "language",
+          "type": "enum",
+          "description": "The language they read it in.",
+          "required": true,
+          "values": ["en", "sw", "luo"]
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure the record is stamped at, resolved from the actor's live registrations before the record is written."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "actor_newest",
+          "description": "One actor's consent history, and the current record at its head.",
+          "fields": ["actor_id", "agreed_at"]
+        }
+      ]
+    }
+  ]
+}

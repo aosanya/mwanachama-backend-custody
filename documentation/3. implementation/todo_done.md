@@ -20,3 +20,11 @@ gateway's `documentation/3. implementation/todo_custody_standup.md`.
 
 `go build ./...`, `go vet ./...` and `go test ./...` (sqlite, in-process —
 no Postgres container) all green.
+
+## Declared-domain conversion — 2026-09-30
+
+| Task | Title | Status | Depends on |
+|------|-------|--------|------------|
+| CU1 | **Declared-domain audit** — this repo against the standard `mwanachama-backend-catalog` sets. One gate of eighteen passes. Written up in [documentation/2. design/declared-domain-audit.md](../2.%20design/declared-domain-audit.md), which is the reference for CU2–CU5 below. | ✅ Done 2026-09-30 | — |
+| CU2 | **RESOLVED (owner 2026-09-30): the module owns all 45 kind values, and this repo is a recorded exception to the domain-neutrality rule.** A domain cannot supply them (CAT5 refuses a domain-supplied `values` by name at load) and moving kind/class into a json document would lose the class index that `models/act.go` says is stored precisely so the filter is an index scan. Reasoning and what follows for `domain_agnostic_test.go` are written up as D1 in [documentation/1. requirements/declared-domain-decisions.md](../1.%20requirements/declared-domain-decisions.md). | ✅ Done 2026-09-30 | — |
+| CU3 | **RESOLVED (owner 2026-09-30): `api-gateway` is treated as retired; convert freely and do not repair it.** It has not compiled since taskmanager's conversion (`cmd/server/stores.go:324` wants the deleted `DefaultTableNames`) and `wakala-api`, the live consumer, does not import this repo. This releases `CLAUDE.md`'s pin on the four `*Repository` interfaces — recorded as D3. Dropping the gateway's `require` lines is tracked org-wide, not here. | ✅ Done 2026-09-30 | — |
