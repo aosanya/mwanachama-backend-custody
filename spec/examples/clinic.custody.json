@@ -1,0 +1,99 @@
+{
+  "module": "custody",
+  "domain": "clinic",
+  "instance": "clinic",
+  "objects": [
+    {
+      "role": "structure_act",
+      "name": "ward_act",
+      "table": "ward_acts",
+      "description": "What a ward's clinical leadership did, in the ward's own record. A ward is this domain's structure.",
+      "indexes": [
+        {
+          "name": "subject_history",
+          "description": "Every act recorded against one patient, for the disclosure log a subject access request produces.",
+          "fields": ["subject_id", "occurred_at"]
+        }
+      ]
+    },
+    {
+      "role": "event",
+      "name": "record_event",
+      "table": "record_events",
+      "description": "The clinic's audit trail of everything done to patient records as data."
+    },
+    {
+      "role": "export_job",
+      "name": "disclosure_job",
+      "table": "disclosure_jobs",
+      "description": "A disclosure build: the regulator's extract, or one patient's own copy of their chart.",
+      "fields": [
+        {
+          "name": "include_ids",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "role": "contact_read",
+      "name": "chart_access",
+      "table": "chart_accesses",
+      "description": "A clinician opening a patient's chart, which is logged whether or not anything was changed."
+    },
+    {
+      "role": "consent_version",
+      "name": "consent_form_version",
+      "table": "consent_form_versions",
+      "description": "One rendering of a treatment consent form."
+    },
+    {
+      "role": "consent_record",
+      "name": "patient_consent",
+      "table": "patient_consents",
+      "description": "A patient's signature against a treatment consent form."
+    },
+    {
+      "name": "retention_hold",
+      "table": "retention_holds",
+      "description": "A legal hold stopping a chart being purged while a claim is open. This domain's own object, filling no role the module declares, so no rule in the module touches it.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key.",
+          "primary": true
+        },
+        {
+          "name": "subject_id",
+          "type": "string",
+          "description": "The patient whose chart is held.",
+          "required": true
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "description": "Why the hold was placed."
+        },
+        {
+          "name": "placed_at",
+          "type": "timestamp",
+          "description": "When the hold was placed.",
+          "required": true
+        },
+        {
+          "name": "lifted_at",
+          "type": "timestamp",
+          "description": "When it was lifted. Null while the hold is live.",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "live_holds",
+          "description": "The holds still in force, which the purge sweep must consult before it deletes anything.",
+          "fields": ["subject_id", "placed_at"]
+        }
+      ]
+    }
+  ]
+}

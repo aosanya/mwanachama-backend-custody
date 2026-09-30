@@ -1,0 +1,43 @@
+{
+  "module": "custody",
+  "domain": "mwanachama",
+  "instance": "mwanachama",
+  "objects": [
+    {
+      "role": "structure_act",
+      "name": "chapter_act",
+      "table": "chapter_acts",
+      "description": "What a chapter's leadership did, in the chapter's own record. This domain calls a structure a chapter; the module does not know the word."
+    },
+    {
+      "role": "event",
+      "name": "custody_event",
+      "table": "custody_events",
+      "description": "The organization's audit trail of everything done to member data as data."
+    },
+    {
+      "role": "export_job",
+      "name": "export_job",
+      "table": "export_jobs",
+      "description": "An export build: the HQ register, or one member's own data under a subject access request."
+    },
+    {
+      "role": "contact_read",
+      "name": "contact_read",
+      "table": "contact_reads",
+      "description": "An operator viewing a member's phone number, which spends a capability and is shown back to the member."
+    },
+    {
+      "role": "consent_version",
+      "name": "consent_text_version",
+      "table": "consent_text_versions",
+      "description": "One rendering of the membership consent sheet, in English, Swahili or Luo."
+    },
+    {
+      "role": "consent_record",
+      "name": "consent_record",
+      "table": "consent_records",
+      "description": "A member's acceptance of the consent sheet, stamped at the chapter they were registered in."
+    }
+  ]
+}
