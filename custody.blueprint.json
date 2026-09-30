@@ -21,7 +21,8 @@
           "name": "occurred_at",
           "type": "timestamp",
           "description": "When the act happened, which is not when the row was written. The primary sort key.",
-          "required": true
+          "required": true,
+          "matches": "instant"
         },
         {
           "name": "kind",
@@ -48,12 +49,12 @@
         {
           "name": "class",
           "type": "enum",
-          "description": "The filter grouping this kind belongs to. Stored rather than computed at read time so filtering by it is an index scan.",
+          "description": "The filter grouping this kind belongs to. Stored rather than computed at read time so filtering by it is an index scan. Declared in the order the log draws its filter chips, so the order is data rather than a second list in Go.",
           "required": true,
           "values": [
             "moderation",
-            "roles",
             "escalations",
+            "roles",
             "membership",
             "structure",
             "intelligence"
@@ -105,12 +106,18 @@
         {
           "name": "structure_newest",
           "description": "The log's own read: one structure's entries, newest first.",
-          "fields": ["structure_id", "occurred_at"]
+          "fields": [
+            "structure_id",
+            "occurred_at"
+          ]
         },
         {
           "name": "class_since",
           "description": "The per-class tally over a window, and the class filter on the log itself.",
-          "fields": ["class", "occurred_at"]
+          "fields": [
+            "class",
+            "occurred_at"
+          ]
         }
       ]
     },
@@ -128,7 +135,8 @@
           "name": "occurred_at",
           "type": "timestamp",
           "description": "When it happened. The primary sort key.",
-          "required": true
+          "required": true,
+          "matches": "instant"
         },
         {
           "name": "kind",
@@ -171,7 +179,7 @@
         {
           "name": "chip",
           "type": "enum",
-          "description": "The filter grouping this kind reaches. Stored rather than computed, for class's reason.",
+          "description": "The filter grouping this kind reaches. Stored rather than computed, for class's reason, and declared in the order the log draws its chips.",
           "required": true,
           "values": [
             "exports",
@@ -212,7 +220,10 @@
         {
           "name": "chip_newest",
           "description": "The log's read, narrowed to a chip, and the per-chip tally over a window.",
-          "fields": ["chip", "occurred_at"]
+          "fields": [
+            "chip",
+            "occurred_at"
+          ]
         }
       ]
     },
@@ -231,7 +242,10 @@
           "type": "enum",
           "description": "Which of the two exports this is. Every rule on a job branches on it, and a job is one or the other and never both.",
           "required": true,
-          "values": ["organization", "actor"]
+          "values": [
+            "organization",
+            "actor"
+          ]
         },
         {
           "name": "subject_actor_id",
@@ -247,13 +261,15 @@
           "name": "requested_at",
           "type": "timestamp",
           "description": "When it was asked for.",
-          "required": true
+          "required": true,
+          "matches": "instant"
         },
         {
           "name": "snapshot_at",
           "type": "timestamp",
           "description": "The instant the build reads from. Never defaulted from requested_at: a zero here is a build that would read now() instead of one instant.",
-          "required": true
+          "required": true,
+          "matches": "instant"
         },
         {
           "name": "include_ids",
@@ -265,7 +281,10 @@
           "type": "enum",
           "description": "How the file is written. An actor's export is always csv_zip, because a pg_dump of one actor's rows is a format only the organization could open.",
           "required": true,
-          "values": ["pg_dump", "csv_zip"]
+          "values": [
+            "pg_dump",
+            "csv_zip"
+          ]
         },
         {
           "name": "datasets",
@@ -277,7 +296,12 @@
           "type": "enum",
           "description": "Where the build is. interrupted is a first-class state rather than an absence — it is what lets a resume be a resume.",
           "required": true,
-          "values": ["building", "interrupted", "completed", "failed"]
+          "values": [
+            "building",
+            "interrupted",
+            "completed",
+            "failed"
+          ]
         },
         {
           "name": "progress_pct",
@@ -316,25 +340,33 @@
           "name": "file_removed_at",
           "type": "timestamp",
           "description": "When the file was removed. Null while it is still there; the row itself survives either way.",
-          "nullable": true
+          "nullable": true,
+          "matches": "instant"
         },
         {
           "name": "file_removed_due_at",
           "type": "timestamp",
           "description": "When the file becomes due for removal, which is always snapshot_at plus the retention window.",
-          "required": true
+          "required": true,
+          "matches": "instant"
         }
       ],
       "indexes": [
         {
           "name": "scope_newest",
           "description": "The organization's listing and one actor's listing, both newest first.",
-          "fields": ["scope", "subject_actor_id", "requested_at"]
+          "fields": [
+            "scope",
+            "subject_actor_id",
+            "requested_at"
+          ]
         },
         {
           "name": "removal_sweep",
           "description": "The retention worker's walk: files past their due date and not yet removed, oldest first.",
-          "fields": ["file_removed_due_at"]
+          "fields": [
+            "file_removed_due_at"
+          ]
         }
       ]
     },
@@ -369,25 +401,33 @@
           "name": "read_at",
           "type": "timestamp",
           "description": "When, to the minute.",
-          "required": true
+          "required": true,
+          "matches": "instant"
         },
         {
           "name": "notified_at",
           "type": "timestamp",
           "description": "When the subject was told. Null until they are.",
-          "nullable": true
+          "nullable": true,
+          "matches": "instant"
         }
       ],
       "indexes": [
         {
           "name": "subject_newest",
           "description": "The subject's own view of who read their details, newest first.",
-          "fields": ["actor_id", "read_at"]
+          "fields": [
+            "actor_id",
+            "read_at"
+          ]
         },
         {
           "name": "operator_newest",
           "description": "The operator's own side, scoped to themselves.",
-          "fields": ["read_by", "read_at"]
+          "fields": [
+            "read_by",
+            "read_at"
+          ]
         }
       ]
     },
@@ -406,7 +446,11 @@
           "type": "enum",
           "description": "Which half of the sheet this version belongs to.",
           "required": true,
-          "values": ["mechanics", "appendix", "public_sheet"]
+          "values": [
+            "mechanics",
+            "appendix",
+            "public_sheet"
+          ]
         },
         {
           "name": "version",
@@ -419,7 +463,11 @@
           "type": "enum",
           "description": "The language this rendering is in.",
           "required": true,
-          "values": ["en", "sw", "luo"]
+          "values": [
+            "en",
+            "sw",
+            "luo"
+          ]
         },
         {
           "name": "clauses",
@@ -450,7 +498,8 @@
           "name": "published_at",
           "type": "timestamp",
           "description": "When it came into force. Null means unpublished, which is an ordinary state rather than an exceptional one.",
-          "nullable": true
+          "nullable": true,
+          "matches": "instant"
         },
         {
           "name": "published_by",
@@ -461,20 +510,29 @@
           "name": "superseded_at",
           "type": "timestamp",
           "description": "When a later version took its place. Null on the version currently in force.",
-          "nullable": true
+          "nullable": true,
+          "matches": "instant"
         }
       ],
       "indexes": [
         {
           "name": "natural_key",
           "description": "Scope, version and language together are the natural key. A database constraint rather than a pre-check, so a concurrent caller loses the race in the database instead of slipping past a read-then-write.",
-          "fields": ["scope", "version", "language"],
+          "fields": [
+            "scope",
+            "version",
+            "language"
+          ],
           "unique": true
         },
         {
           "name": "in_force",
           "description": "The version currently in force for a scope and language: the greatest published_at with no superseded_at.",
-          "fields": ["scope", "language", "published_at"]
+          "fields": [
+            "scope",
+            "language",
+            "published_at"
+          ]
         }
       ]
     },
@@ -509,14 +567,19 @@
           "name": "agreed_at",
           "type": "timestamp",
           "description": "When they agreed.",
-          "required": true
+          "required": true,
+          "matches": "instant"
         },
         {
           "name": "language",
           "type": "enum",
           "description": "The language they read it in.",
           "required": true,
-          "values": ["en", "sw", "luo"]
+          "values": [
+            "en",
+            "sw",
+            "luo"
+          ]
         },
         {
           "name": "structure_id",
@@ -528,7 +591,10 @@
         {
           "name": "actor_newest",
           "description": "One actor's consent history, and the current record at its head.",
-          "fields": ["actor_id", "agreed_at"]
+          "fields": [
+            "actor_id",
+            "agreed_at"
+          ]
         }
       ]
     }

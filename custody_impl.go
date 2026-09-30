@@ -2,40 +2,57 @@ package mwanachamacustody
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"time"
 
 	"gorm.io/gorm"
 
-	"github.com/aosanya/mwanachama-backend-custody/gormstore"
+	"github.com/aosanya/mwanachama-backend-shared/spec"
+	"github.com/aosanya/mwanachama-backend-shared/specstore"
+
 	"github.com/aosanya/mwanachama-backend-custody/models"
 )
 
-// CustodyStore is the GORM implementation of [models.CustodyRepository].
-//
-// **There is no UPDATE and no DELETE statement anywhere in this file.** That
-// is the append-only invariant, and it is a property of the file rather than
-// a rule enforced inside one — the source object files say `update: nobody`
-// and `delete: nobody`, and a store with no such statement cannot be talked
-// into one.
 type CustodyStore struct {
-	db     *gorm.DB
-	tables TableNames
-	clock  Clock
+	db    *gorm.DB
+	st    *store
+	clock Clock
 }
 
-// NewCustodyStore constructs a CustodyStore backed by db, reading and
-// writing the tables named by t. Callers must run [Migrate] against the
-// same db and t before use. clock defaults to [SystemClock] when nil.
-func NewCustodyStore(db *gorm.DB, t TableNames, clock Clock) (*CustodyStore, error) {
-	if db == nil {
-		return nil, fmt.Errorf("NewCustodyStore: db must not be nil")
+func NewCustodyStore(db *gorm.DB, s *spec.Spec, clock Clock) (*CustodyStore, error) {
+	st, err := newStore(db, s)
+	if err != nil {
+		return nil, fmt.Errorf("NewCustodyStore: %w", err)
 	}
 	if clock == nil {
 		clock = SystemClock
 	}
-	return &CustodyStore{db: db, tables: t, clock: clock}, nil
+	return &CustodyStore{db: db, st: st, clock: clock}, nil
+}
+
+func (s *CustodyStore) Classes() []models.ActClass {
+	values := declaredValues(s.st.Object(RoleStructureAct), "class")
+	out := make([]models.ActClass, 0, len(values))
+	for _, v := range values {
+		out = append(out, models.ActClass(v))
+	}
+	return out
+}
+
+func (s *CustodyStore) Chips() []models.EventChip {
+	values := declaredValues(s.st.Object(RoleEvent), "chip")
+	out := make([]models.EventChip, 0, len(values))
+	for _, v := range values {
+		out = append(out, models.EventChip(v))
+	}
+	return out
+}
+
+func (s *CustodyStore) ValidClass(class models.ActClass) bool {
+	return checkField(s.st.Object(RoleStructureAct), "class", string(class)) == nil
+}
+
+func (s *CustodyStore) ValidChip(chip models.EventChip) bool {
+	return checkField(s.st.Object(RoleEvent), "chip", string(chip)) == nil
 }
 
 func (s *CustodyStore) AppendAct(ctx context.Context, e models.StructureActLogEntry) (models.StructureActLogEntry, error) {
@@ -47,53 +64,48 @@ func (s *CustodyStore) AppendAct(ctx context.Context, e models.StructureActLogEn
 		return models.StructureActLogEntry{}, models.ErrStructureRequired
 	}
 	e.Class = class
-	if e.OccurredAt.IsZero() {
-		e.OccurredAt = s.clock()
+	if e.OccurredAt == "" {
+		e.OccurredAt = models.FormatTime(s.clock())
 	}
-	row, err := gormstore.StructureActLogEntryToRow(e)
-	if err != nil {
+	if err := check(s.st.Object(RoleStructureAct), e); err != nil {
 		return models.StructureActLogEntry{}, err
 	}
-	if err := s.db.WithContext(ctx).Table(s.tables.StructureActLog).Create(&row).Error; err != nil {
+	if e.ID == 0 {
+		next, err := nextSequenceID(s.db.WithContext(ctx), s.st.Table(RoleStructureAct), sequenceFor(RoleStructureAct))
+		if err != nil {
+			return models.StructureActLogEntry{}, err
+		}
+		e.ID = next
+	}
+	if err := s.st.Insert(ctx, RoleStructureAct, e); err != nil {
 		return models.StructureActLogEntry{}, classify(err)
 	}
-	return gormstore.StructureActLogEntryFromRow(row)
+	return e, nil
+}
+
+func actScope(q *gorm.DB, structures []string) *gorm.DB {
+	if len(structures) > 0 {
+		return q.Where("structure_id IN ?", structures)
+	}
+	return q
 }
 
 func (s *CustodyStore) ListActs(ctx context.Context, structures []string, class models.ActClass, limit int) ([]models.StructureActLogEntry, error) {
-	if limit <= 0 {
-		limit = models.DefaultPage
-	}
-	q := s.db.WithContext(ctx).Table(s.tables.StructureActLog)
-	if len(structures) > 0 {
-		q = q.Where("chapter_id IN ?", structures)
-	}
+	q := actScope(s.st.Query(ctx, RoleStructureAct), structures)
 	if class != "" {
 		q = q.Where("class = ?", string(class))
 	}
-	var rows []gormstore.StructureActLogEntryRow
-	if err := q.Order("occurred_at DESC, id DESC").Limit(limit).Find(&rows).Error; err != nil {
+	out, err := specstore.List[models.StructureActLogEntry](s.st,
+		q.Order("occurred_at DESC, id DESC").Limit(pageOf(limit)), RoleStructureAct)
+	if err != nil {
 		return nil, classify(err)
-	}
-	out := make([]models.StructureActLogEntry, 0, len(rows))
-	for _, r := range rows {
-		e, err := gormstore.StructureActLogEntryFromRow(r)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, e)
 	}
 	return out, nil
 }
 
-// CountActsByClass returns the per-class tally over one query, so the counts
-// sum to the same total a concurrent ListActs would see.
-func (s *CustodyStore) CountActsByClass(ctx context.Context, structures []string, since time.Time) (map[models.ActClass]int, error) {
-	q := s.db.WithContext(ctx).Table(s.tables.StructureActLog)
-	if len(structures) > 0 {
-		q = q.Where("chapter_id IN ?", structures)
-	}
-	if !since.IsZero() {
+func (s *CustodyStore) CountActsByClass(ctx context.Context, structures []string, since string) (map[models.ActClass]int, error) {
+	q := actScope(s.st.Query(ctx, RoleStructureAct), structures)
+	if since != "" {
 		q = q.Where("occurred_at >= ?", since)
 	}
 	var rows []struct {
@@ -110,56 +122,47 @@ func (s *CustodyStore) CountActsByClass(ctx context.Context, structures []string
 	return out, nil
 }
 
-// AppendEvent writes one custody row, deriving Chip from Kind before
-// anything is written, for AppendAct's reason.
 func (s *CustodyStore) AppendEvent(ctx context.Context, e models.Entry) (models.Entry, error) {
 	chip, err := models.EventChipOf(e.Kind)
 	if err != nil {
 		return models.Entry{}, err
 	}
 	e.Chip = chip
-	if e.OccurredAt.IsZero() {
-		e.OccurredAt = s.clock()
+	if e.OccurredAt == "" {
+		e.OccurredAt = models.FormatTime(s.clock())
 	}
-	row, err := gormstore.EntryToRow(e)
-	if err != nil {
+	if err := check(s.st.Object(RoleEvent), e); err != nil {
 		return models.Entry{}, err
 	}
-	if err := s.db.WithContext(ctx).Table(s.tables.CustodyEvent).Create(&row).Error; err != nil {
+	if e.ID == 0 {
+		next, err := nextSequenceID(s.db.WithContext(ctx), s.st.Table(RoleEvent), sequenceFor(RoleEvent))
+		if err != nil {
+			return models.Entry{}, err
+		}
+		e.ID = next
+	}
+	if err := s.st.Insert(ctx, RoleEvent, e); err != nil {
 		return models.Entry{}, classify(err)
 	}
-	return gormstore.EntryFromRow(row)
+	return e, nil
 }
 
-// ListEvents returns custody rows newest first, optionally narrowed to a chip.
 func (s *CustodyStore) ListEvents(ctx context.Context, chip models.EventChip, limit int) ([]models.Entry, error) {
-	if limit <= 0 {
-		limit = models.DefaultPage
-	}
-	q := s.db.WithContext(ctx).Table(s.tables.CustodyEvent)
+	q := s.st.Query(ctx, RoleEvent)
 	if chip != "" {
 		q = q.Where("chip = ?", string(chip))
 	}
-	var rows []gormstore.EntryRow
-	if err := q.Order("occurred_at DESC, id DESC").Limit(limit).Find(&rows).Error; err != nil {
+	out, err := specstore.List[models.Entry](s.st,
+		q.Order("occurred_at DESC, id DESC").Limit(pageOf(limit)), RoleEvent)
+	if err != nil {
 		return nil, classify(err)
-	}
-	out := make([]models.Entry, 0, len(rows))
-	for _, r := range rows {
-		e, err := gormstore.EntryFromRow(r)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, e)
 	}
 	return out, nil
 }
 
-// CountEventsByChip returns the per-chip tally over one query, for
-// CountActsByClass's reason.
-func (s *CustodyStore) CountEventsByChip(ctx context.Context, since time.Time) (map[models.EventChip]int, error) {
-	q := s.db.WithContext(ctx).Table(s.tables.CustodyEvent)
-	if !since.IsZero() {
+func (s *CustodyStore) CountEventsByChip(ctx context.Context, since string) (map[models.EventChip]int, error) {
+	q := s.st.Query(ctx, RoleEvent)
+	if since != "" {
 		q = q.Where("occurred_at >= ?", since)
 	}
 	var rows []struct {
@@ -176,17 +179,13 @@ func (s *CustodyStore) CountEventsByChip(ctx context.Context, since time.Time) (
 	return out, nil
 }
 
-// GetEvent returns one custody row by id.
 func (s *CustodyStore) GetEvent(ctx context.Context, id int64) (models.Entry, error) {
-	var row gormstore.EntryRow
-	err := s.db.WithContext(ctx).Table(s.tables.CustodyEvent).Where("id = ?", id).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.Entry{}, models.ErrNotFound
-	}
+	var out models.Entry
+	err := s.st.Take(s.st.Query(ctx, RoleEvent).Where("id = ?", id), RoleEvent, &out, models.ErrNotFound)
 	if err != nil {
 		return models.Entry{}, classify(err)
 	}
-	return gormstore.EntryFromRow(row)
+	return out, nil
 }
 
 var _ models.CustodyRepository = (*CustodyStore)(nil)

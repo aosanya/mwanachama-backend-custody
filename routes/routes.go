@@ -1,70 +1,93 @@
 package routes
 
 import (
-	"net/http"
+	"fmt"
 
-	mwanachamacustody "github.com/aosanya/mwanachama-backend-custody"
+	"github.com/aosanya/mwanachama-backend-shared/dispatch"
+	"github.com/aosanya/mwanachama-backend-shared/httpwire"
+
+	custody "github.com/aosanya/mwanachama-backend-custody"
 )
 
-// Route is one address this package answers, relative to wherever the
-// mounting process prefixes it — mirrors mwanachama-backend-actor/routes.
-// Route and mwanachama-backend-comm/routes.Route exactly.
-type Route struct {
-	Method  string
-	Path    string
-	Handler http.HandlerFunc
+type Route = httpwire.Route
+
+var sentinels = map[string]error{
+	"ErrNotFound":            custody.ErrNotFound,
+	"ErrAlreadyPublished":    custody.ErrAlreadyPublished,
+	"ErrUnknownScope":        custody.ErrUnknownScope,
+	"ErrUnknownActClass":     custody.ErrUnknownActClass,
+	"ErrUnknownEventChip":    custody.ErrUnknownEventChip,
+	"ErrInvalidLimit":        custody.ErrInvalidLimit,
+	"ErrInvalidSince":        custody.ErrInvalidSince,
+	"ErrStructureIDRequired": custody.ErrStructureIDRequired,
+	"ErrNotSelf":             custody.ErrNotSelf,
 }
 
-// Pattern returns the http.ServeMux registration pattern for this route
-// once mounted under prefix.
-func (r Route) Pattern(prefix string) string {
-	return r.Method + " " + prefix + r.Path
+// AnonymousActions is every operation reachable without presenting a caller.
+// It is empty: nothing in an audit trail is public, and this module has
+// never carried a gate of its own — whatever mounts it supplies the
+// Authorizer. It is the allowlist Split is taken over, never the list of
+// what is protected, so an operation added to the spec and not named here
+// arrives gated.
+var AnonymousActions = []string{}
+
+type Mount struct {
+	Authorize dispatch.Authorizer
+	Caller    dispatch.Caller
 }
 
-func CustodyRoutes(custody mwanachamacustody.CustodyRepository, resolver ScopeResolver) []Route {
-	return []Route{
-		{Method: http.MethodGet, Path: "/structures/{structureID}/act-log", Handler: listStructureActs(custody, resolver)},
-		{Method: http.MethodGet, Path: "/structures/{structureID}/act-log/counts", Handler: countStructureActs(custody, resolver)},
-		{Method: http.MethodGet, Path: "/custody-log", Handler: listCustodyEvents(custody)},
-		{Method: http.MethodGet, Path: "/custody-log/counts", Handler: countCustodyEvents(custody)},
+func Build(cm *custody.CustodyManager) ([]Route, error) { return BuildWith(cm, nil) }
+
+func BuildWith(cm *custody.CustodyManager, authorize dispatch.Authorizer) ([]Route, error) {
+	return BuildFor(cm, Mount{Authorize: authorize})
+}
+
+func BuildFor(cm *custody.CustodyManager, m Mount) ([]Route, error) {
+	s, err := custody.Operations()
+	if err != nil {
+		return nil, err
 	}
+	return dispatch.Dispatch(s, dispatch.Deps{
+		Manager: cm, Errors: sentinels, Authorize: m.Authorize, Caller: m.Caller,
+	})
 }
 
-// ExportRoutes is the three safe reads over export_job — see doc.go for why
-// there is no write route.
-func ExportRoutes(export mwanachamacustody.ExportRepository, identity Identity) []Route {
-	return []Route{
-		{Method: http.MethodGet, Path: "/export-jobs/{jobID}", Handler: getExportJob(export)},
-		{Method: http.MethodGet, Path: "/export-jobs", Handler: listOrganizationExports(export)},
-		{Method: http.MethodGet, Path: "/actors/{actorID}/export-jobs", Handler: listActorExports(export, identity)},
+func Routes(cm *custody.CustodyManager) []Route { return RoutesWith(cm, nil) }
+
+func RoutesWith(cm *custody.CustodyManager, authorize dispatch.Authorizer) []Route {
+	return RoutesFor(cm, Mount{Authorize: authorize})
+}
+
+func RoutesFor(cm *custody.CustodyManager, m Mount) []Route {
+	out, err := BuildFor(cm, m)
+	if err != nil {
+		panic(fmt.Sprintf("custody routes: %v", err))
 	}
-}
-
-// ContactRoutes is the one route that qualifies over contact_read — see
-// doc.go for why the decorated gateway response cannot move here.
-func ContactRoutes(contact mwanachamacustody.ContactRepository, identity Identity) []Route {
-	return []Route{
-		{Method: http.MethodGet, Path: "/actors/{actorID}/contact-reads", Handler: listContactReads(contact, identity)},
-	}
-}
-
-func ConsentRoutes(consent mwanachamacustody.ConsentRepository, identity Identity) []Route {
-	return []Route{
-		{Method: http.MethodGet, Path: "/consent/versions/in-force/{scope}/{language}", Handler: getInForceConsentVersion(consent)},
-		{Method: http.MethodGet, Path: "/consent/versions/{versionID}", Handler: getConsentVersion(consent)},
-		{Method: http.MethodPost, Path: "/consent/versions", Handler: createConsentVersion(consent)},
-		{Method: http.MethodPost, Path: "/consent/versions/{versionID}/publish", Handler: publishConsentVersion(consent, identity)},
-	}
-}
-
-// Routes is every address this package answers today: CustodyRoutes,
-// ExportRoutes, ContactRoutes and ConsentRoutes concatenated. A mounting
-// process that wants to wrap each domain's gate differently (the gateway
-// does, today) calls the four functions separately instead.
-func Routes(custody mwanachamacustody.CustodyRepository, export mwanachamacustody.ExportRepository, contact mwanachamacustody.ContactRepository, consent mwanachamacustody.ConsentRepository, resolver ScopeResolver, identity Identity) []Route {
-	out := CustodyRoutes(custody, resolver)
-	out = append(out, ExportRoutes(export, identity)...)
-	out = append(out, ContactRoutes(contact, identity)...)
-	out = append(out, ConsentRoutes(consent, identity)...)
 	return out
+}
+
+func Split(cm *custody.CustodyManager) dispatch.Split { return SplitWith(cm, nil) }
+
+func SplitWith(cm *custody.CustodyManager, authorize dispatch.Authorizer) dispatch.Split {
+	return SplitFor(cm, Mount{Authorize: authorize})
+}
+
+func SplitFor(cm *custody.CustodyManager, m Mount) dispatch.Split {
+	public := dispatch.Anonymous(RoutesFor(cm, Mount{Caller: m.Caller}), AnonymousActions...)
+	gated := dispatch.Anonymous(RoutesFor(cm, m), AnonymousActions...)
+	return dispatch.Split{Anonymous: public.Anonymous, Gated: gated.Gated}
+}
+
+func PublicRoutes(cm *custody.CustodyManager) []Route { return Split(cm).Anonymous }
+
+func OperatorRoutes(cm *custody.CustodyManager, authorize dispatch.Authorizer) []Route {
+	return SplitWith(cm, authorize).Gated
+}
+
+func Shape() []Route {
+	s, err := custody.Operations()
+	if err != nil {
+		panic(fmt.Sprintf("custody routes: %v", err))
+	}
+	return dispatch.Shape(s)
 }

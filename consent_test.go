@@ -12,8 +12,8 @@ import (
 
 func newConsentStore(t *testing.T) *mwanachamacustody.ConsentStore {
 	t.Helper()
-	db, tables := newTestDB(t)
-	s, err := mwanachamacustody.NewConsentStore(db, tables)
+	db, sp := newTestDB(t)
+	s, err := mwanachamacustody.NewConsentStore(db, sp)
 	if err != nil {
 		t.Fatalf("NewConsentStore: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestCreateVersionRefusesDuplicateNaturalKey(t *testing.T) {
 func TestCreateVersionClearsPublicationFields(t *testing.T) {
 	s := newConsentStore(t)
 	ctx := context.Background()
-	now := time.Now().UTC()
+	now := models.Now()
 	created, err := s.CreateVersion(ctx, models.TextVersion{
 		Scope: models.ScopeMechanics, Version: "v1", Language: models.LanguageEnglish,
 		PublishedAt: &now, PublishedBy: "sneaky", CopiedMechanicsID: "sneaky-id",
@@ -56,7 +56,7 @@ func TestPublishVersionSupersedesPriorInForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateVersion v1: %v", err)
 	}
-	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	t0 := models.FormatTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	if _, err := s.PublishVersion(ctx, v1.ID, "admin-1", t0); err != nil {
 		t.Fatalf("PublishVersion v1: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestPublishVersionSupersedesPriorInForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateVersion v2: %v", err)
 	}
-	t1 := t0.Add(24 * time.Hour)
+	t1 := models.FormatTime(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC))
 	if _, err := s.PublishVersion(ctx, v2.ID, "admin-1", t1); err != nil {
 		t.Fatalf("PublishVersion v2: %v", err)
 	}
@@ -92,11 +92,11 @@ func TestPublishVersionRefusesAlreadyPublished(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateVersion: %v", err)
 	}
-	now := time.Now().UTC()
+	now := models.Now()
 	if _, err := s.PublishVersion(ctx, v.ID, "admin-1", now); err != nil {
 		t.Fatalf("PublishVersion #1: %v", err)
 	}
-	_, err = s.PublishVersion(ctx, v.ID, "admin-1", now.Add(time.Hour))
+	_, err = s.PublishVersion(ctx, v.ID, "admin-1", models.FormatTime(time.Now().UTC().Add(time.Hour)))
 	if !errors.Is(err, models.ErrAlreadyPublished) {
 		t.Fatalf("PublishVersion #2: got %v, want ErrAlreadyPublished", err)
 	}
@@ -127,7 +127,7 @@ func TestEnrollWritesRecordWithNilableAppendix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateVersion mechanics: %v", err)
 	}
-	now := time.Now().UTC()
+	now := models.Now()
 	if _, err := s.PublishVersion(ctx, mechanics.ID, "admin-1", now); err != nil {
 		t.Fatalf("PublishVersion mechanics: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestEnrollWritesRecordWithNilableAppendix(t *testing.T) {
 
 func TestEnrollRefusesWithNoMechanicsInForce(t *testing.T) {
 	s := newConsentStore(t)
-	_, err := mwanachamacustody.Enroll(context.Background(), s, "mem-1", "ward-1", models.LanguageEnglish, time.Now().UTC())
+	_, err := mwanachamacustody.Enroll(context.Background(), s, "mem-1", "ward-1", models.LanguageEnglish, models.Now())
 	if !errors.Is(err, mwanachamacustody.ErrNoMechanicsInForce) {
 		t.Fatalf("Enroll with no mechanics: got %v, want ErrNoMechanicsInForce", err)
 	}

@@ -3,7 +3,6 @@ package mwanachamacustody
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/aosanya/mwanachama-backend-custody/models"
 )
@@ -12,7 +11,7 @@ import (
 // ever been published in the requested language.
 var ErrNoMechanicsInForce = errors.New("mwanachamacustody: no mechanics version in force for this language")
 
-func Enroll(ctx context.Context, repo models.ConsentRepository, actorID, structureID string, language models.Language, now time.Time) (models.Record, error) {
+func Enroll(ctx context.Context, repo models.ConsentRepository, actorID, structureID string, language models.Language, now string) (models.Record, error) {
 	mechanics, err := repo.GetInForce(ctx, models.ScopeMechanics, language)
 	if err != nil {
 		if errors.Is(err, models.ErrNotFound) {

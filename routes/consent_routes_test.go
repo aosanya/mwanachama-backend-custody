@@ -1,48 +1,17 @@
 package routes_test
 
-// Real-mux HTTP tests for routes.ConsentRoutes — this package had zero test
-// coverage before this file (see documentation/3. implementation/todo.md's
-// DEV-1695/DEV-1696).
-
 import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
-	mwanachamacustody "github.com/aosanya/mwanachama-backend-custody"
-	"github.com/aosanya/mwanachama-backend-custody/routes"
 )
-
-type testIdentity struct{ id string }
-
-func (i testIdentity) CallerID(r *http.Request) string { return i.id }
 
 func newConsentTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("gorm.Open: %v", err)
-	}
-	tables := mwanachamacustody.DefaultTableNames()
-	if err := mwanachamacustody.Migrate(db, tables); err != nil {
-		t.Fatalf("Migrate: %v", err)
-	}
-	consent, err := mwanachamacustody.NewConsentStore(db, tables)
-	if err != nil {
-		t.Fatalf("NewConsentStore: %v", err)
-	}
-	mux := http.NewServeMux()
-	for _, rt := range routes.ConsentRoutes(consent, testIdentity{id: "operator-1"}) {
-		mux.Handle(rt.Pattern(""), rt.Handler)
-	}
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	return srv
+	cm, _ := newManager(t, nil)
+	return serve(t, cm, "operator-1")
 }
 
 func postJSON(t *testing.T, url, body string) (int, map[string]any) {

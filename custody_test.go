@@ -12,8 +12,8 @@ import (
 
 func newCustodyStore(t *testing.T, clock mwanachamacustody.Clock) *mwanachamacustody.CustodyStore {
 	t.Helper()
-	db, tables := newTestDB(t)
-	s, err := mwanachamacustody.NewCustodyStore(db, tables, clock)
+	db, sp := newTestDB(t)
+	s, err := mwanachamacustody.NewCustodyStore(db, sp, clock)
 	if err != nil {
 		t.Fatalf("NewCustodyStore: %v", err)
 	}
@@ -104,12 +104,12 @@ func TestCountActsByClassSumsToEverything(t *testing.T) {
 	mustAppendAct(t, s, "ward-1", models.ActRoleRevoked)
 	mustAppendAct(t, s, "ward-1", models.ActStructureRetired)
 
-	counts, err := s.CountActsByClass(ctx, []string{"ward-1"}, time.Time{})
+	counts, err := s.CountActsByClass(ctx, []string{"ward-1"}, "")
 	if err != nil {
 		t.Fatalf("CountActsByClass: %v", err)
 	}
 	total := 0
-	for _, c := range models.ActClasses() {
+	for _, c := range s.Classes() {
 		total += counts[c]
 	}
 	if total != 3 {
@@ -163,12 +163,12 @@ func TestCountEventsByChipSumsToEverything(t *testing.T) {
 			t.Fatalf("AppendEvent(%q): %v", k, err)
 		}
 	}
-	counts, err := s.CountEventsByChip(ctx, time.Time{})
+	counts, err := s.CountEventsByChip(ctx, "")
 	if err != nil {
 		t.Fatalf("CountEventsByChip: %v", err)
 	}
 	total := 0
-	for _, c := range models.EventChips() {
+	for _, c := range s.Chips() {
 		total += counts[c]
 	}
 	if total != 3 {

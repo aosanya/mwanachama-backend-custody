@@ -73,25 +73,12 @@ const (
 	ChipPlatform     = models.ChipPlatform
 )
 
-// ActClasses returns every act class, in chip-row order. See
-// [models.ActClasses].
-func ActClasses() []ActClass { return models.ActClasses() }
-
-// IsActClass reports whether c is a live class. See [models.IsActClass].
-func IsActClass(c ActClass) bool { return models.IsActClass(c) }
-
 // ActClassOf maps a kind to its class, or ErrUnknownActKind. See
 // [models.ActClassOf].
 func ActClassOf(k ActKind) (ActClass, error) { return models.ActClassOf(k) }
 
 // ActKinds returns every kind that carries a class. See [models.ActKinds].
 func ActKinds() []ActKind { return models.ActKinds() }
-
-// EventChips returns every chip, in chip-row order. See [models.EventChips].
-func EventChips() []EventChip { return models.EventChips() }
-
-// IsEventChip reports whether c is a live chip. See [models.IsEventChip].
-func IsEventChip(c EventChip) bool { return models.IsEventChip(c) }
 
 // EventKinds returns every kind that reaches a chip. See [models.EventKinds].
 func EventKinds() []EventKind { return models.EventKinds() }

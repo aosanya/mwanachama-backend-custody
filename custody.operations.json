@@ -1,0 +1,261 @@
+{
+  "operations": {
+    "list_structure_acts": {
+      "method": "GET",
+      "path": "/structures/{structureID}/act-log",
+      "call": "ListStructureActs",
+      "action": "custody.structure_act.list",
+      "title": "Read a structure's act log",
+      "description": "One structure's record of what its leadership did, newest first. scope=subtree widens it to the structure's descendant closure, which an externally supplied resolver walks.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structureID",
+          "required": true,
+          "description": "The structure whose log to read."
+        },
+        {
+          "from": "query",
+          "as": "scope",
+          "description": "structure for this structure alone, or subtree for it and its descendants. Empty means structure."
+        },
+        {
+          "from": "query",
+          "as": "class",
+          "description": "Narrow to one filter class. Empty means every class."
+        },
+        {
+          "from": "query",
+          "as": "limit",
+          "description": "How many entries to return, capped at 500. Empty means 500."
+        }
+      ],
+      "returns": [{ "as": "entries" }]
+    },
+    "count_structure_acts": {
+      "method": "GET",
+      "path": "/structures/{structureID}/act-log/counts",
+      "call": "CountStructureActs",
+      "action": "custody.structure_act.count",
+      "title": "Tally a structure's acts by class",
+      "description": "The per-class tally and its total, over one query so the counts sum to what a concurrent listing would see. Every declared class appears, including the ones at zero.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structureID",
+          "required": true,
+          "description": "The structure whose log to tally."
+        },
+        {
+          "from": "query",
+          "as": "scope",
+          "description": "structure or subtree, as on the listing."
+        },
+        {
+          "from": "query",
+          "as": "since",
+          "description": "Count only acts at or after this RFC 3339 instant. Empty means all time."
+        }
+      ],
+      "returns": [{ "as": "everything" }, { "as": "by_class" }]
+    },
+    "list_custody_events": {
+      "method": "GET",
+      "path": "/custody-log",
+      "call": "ListCustodyEvents",
+      "action": "custody.event.list",
+      "title": "Read the organization's custody log",
+      "description": "Everything done to the organization's data as data, newest first.",
+      "args": [
+        {
+          "from": "query",
+          "as": "chip",
+          "description": "Narrow to one filter chip. Empty means every chip."
+        },
+        {
+          "from": "query",
+          "as": "limit",
+          "description": "How many entries to return, capped at 500. Empty means 500."
+        }
+      ],
+      "returns": [{ "as": "entries" }]
+    },
+    "count_custody_events": {
+      "method": "GET",
+      "path": "/custody-log/counts",
+      "call": "CountCustodyEvents",
+      "action": "custody.event.count",
+      "title": "Tally the custody log by chip",
+      "description": "The per-chip tally and its total, for the act log's reason. Every declared chip appears, including the ones at zero.",
+      "args": [
+        {
+          "from": "query",
+          "as": "since",
+          "description": "Count only events at or after this RFC 3339 instant. Empty means all time."
+        }
+      ],
+      "returns": [{ "as": "everything" }, { "as": "by_chip" }]
+    },
+    "get_export_job": {
+      "method": "GET",
+      "path": "/export-jobs/{jobID}",
+      "call": "GetExportJob",
+      "action": "custody.export_job.get",
+      "title": "Read one export job",
+      "description": "Deliberately unscoped: it must not be reachable without a check on the row it returns, which is the mounting process's job.",
+      "args": [
+        {
+          "from": "path",
+          "as": "jobID",
+          "required": true,
+          "description": "The job to read."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "list_organization_exports": {
+      "method": "GET",
+      "path": "/export-jobs",
+      "call": "ListOrganizationExports",
+      "action": "custody.export_job.list",
+      "title": "List the organization's export jobs",
+      "description": "Organization-scoped jobs only. The two export policies are never one with an or, so an actor's own exports are a separate address.",
+      "args": [],
+      "returns": [{ "body": true }]
+    },
+    "list_actor_exports": {
+      "method": "GET",
+      "path": "/actors/{actorID}/export-jobs",
+      "call": "ListActorExports",
+      "action": "custody.export_job.list_own",
+      "title": "List an actor's own export jobs",
+      "description": "Readable only by the actor the jobs are about. The caller comes from the session rather than the address, so a caller naming someone else is refused instead of answered.",
+      "args": [
+        {
+          "from": "path",
+          "as": "actorID",
+          "required": true,
+          "description": "Whose export jobs to list."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The authenticated caller, compared against actorID."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "list_contact_reads": {
+      "method": "GET",
+      "path": "/actors/{actorID}/contact-reads",
+      "call": "ListContactReads",
+      "action": "custody.contact_read.list_own",
+      "title": "List who read an actor's contact details",
+      "description": "The subject's own view, readable only by them. Undecorated: operator, role and structure names live on other objects and are composed by whatever mounts this.",
+      "args": [
+        {
+          "from": "path",
+          "as": "actorID",
+          "required": true,
+          "description": "Whose contact reads to list."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The authenticated caller, compared against actorID."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "get_consent_version_in_force": {
+      "method": "GET",
+      "path": "/consent/versions/in-force/{scope}/{language}",
+      "call": "GetConsentVersionInForce",
+      "action": "custody.consent_version.in_force",
+      "title": "Read the consent version currently in force",
+      "description": "The greatest published_at with no superseded_at, within one scope and language. Nothing published there is a not-found, which is an ordinary state.",
+      "args": [
+        {
+          "from": "path",
+          "as": "scope",
+          "required": true,
+          "description": "Which half of the sheet."
+        },
+        {
+          "from": "path",
+          "as": "language",
+          "required": true,
+          "description": "Which language rendering."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "get_consent_version": {
+      "method": "GET",
+      "path": "/consent/versions/{versionID}",
+      "call": "GetConsentVersion",
+      "action": "custody.consent_version.get",
+      "title": "Read one consent version",
+      "description": "Reads back the exact wording a consent record pins, whether or not it is still in force.",
+      "args": [
+        {
+          "from": "path",
+          "as": "versionID",
+          "required": true,
+          "description": "The version to read."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "create_consent_version": {
+      "method": "POST",
+      "path": "/consent/versions",
+      "call": "CreateConsentVersion",
+      "action": "custody.consent_version.create",
+      "status": 201,
+      "title": "Draft a consent version",
+      "description": "Creates an unpublished version. The publication fields are not accepted from a caller: accepting them would let one mint text already in force, naming a publisher who never published.",
+      "args": [
+        {
+          "from": "body",
+          "whole": true,
+          "description": "The version to draft."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "publish_consent_version": {
+      "method": "POST",
+      "path": "/consent/versions/{versionID}/publish",
+      "call": "PublishConsentVersion",
+      "action": "custody.consent_version.publish",
+      "title": "Publish a consent version",
+      "description": "Brings one version into force and supersedes whichever held that scope and language, atomically. publishedBy is the authenticated caller and never a body field: an act that creates authority names who did it.",
+      "args": [
+        {
+          "from": "path",
+          "as": "versionID",
+          "required": true,
+          "description": "The version to publish."
+        },
+        {
+          "from": "caller",
+          "as": "published_by",
+          "description": "The authenticated caller, recorded as the publisher."
+        }
+      ],
+      "returns": [{ "body": true }]
+    }
+  },
+  "errors": {
+    "ErrNotFound": 404,
+    "ErrAlreadyPublished": 409,
+    "ErrUnknownScope": 400,
+    "ErrUnknownActClass": 400,
+    "ErrUnknownEventChip": 400,
+    "ErrInvalidLimit": 400,
+    "ErrInvalidSince": 400,
+    "ErrStructureIDRequired": 400,
+    "ErrNotSelf": 403
+  }
+}

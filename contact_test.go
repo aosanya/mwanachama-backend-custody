@@ -11,8 +11,8 @@ import (
 
 func newContactStore(t *testing.T, clock mwanachamacustody.Clock) *mwanachamacustody.ContactStore {
 	t.Helper()
-	db, tables := newTestDB(t)
-	s, err := mwanachamacustody.NewContactStore(db, tables, clock)
+	db, sp := newTestDB(t)
+	s, err := mwanachamacustody.NewContactStore(db, sp, clock)
 	if err != nil {
 		t.Fatalf("NewContactStore: %v", err)
 	}

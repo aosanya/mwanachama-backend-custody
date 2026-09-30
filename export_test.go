@@ -12,8 +12,8 @@ import (
 
 func newExportStore(t *testing.T, clock mwanachamacustody.Clock) *mwanachamacustody.ExportStore {
 	t.Helper()
-	db, tables := newTestDB(t)
-	s, err := mwanachamacustody.NewExportStore(db, tables, clock)
+	db, sp := newTestDB(t)
+	s, err := mwanachamacustody.NewExportStore(db, sp, clock)
 	if err != nil {
 		t.Fatalf("NewExportStore: %v", err)
 	}
@@ -27,13 +27,14 @@ func newExportStore(t *testing.T, clock mwanachamacustody.Clock) *mwanachamacust
 // a fixture with an old (or even future) snapshot needs a RequestedAt no
 // later than it to stay valid regardless of when the test actually runs.
 func baseOrgJob(snapshot time.Time) models.Job {
+	at := models.FormatTime(snapshot)
 	return models.Job{
 		Scope:            models.ScopeOrganization,
-		RequestedAt:      snapshot,
-		SnapshotAt:       snapshot,
+		RequestedAt:      at,
+		SnapshotAt:       at,
 		Format:           models.FormatPgDump,
 		Status:           models.StatusBuilding,
-		FileRemovedDueAt: models.DueAt(snapshot),
+		FileRemovedDueAt: models.FormatTime(models.DueAt(snapshot)),
 	}
 }
 
@@ -53,14 +54,14 @@ func TestCreateAndGetRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if created.ID == "" || created.RequestedAt.IsZero() {
+	if created.ID == "" || created.RequestedAt == "" {
 		t.Fatalf("Create did not fill ID/RequestedAt: %+v", created)
 	}
 	got, err := s.Get(ctx, created.ID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if got.Scope != models.ScopeOrganization || !got.SnapshotAt.Equal(snap) {
+	if got.Scope != models.ScopeOrganization || got.SnapshotAt != models.FormatTime(snap) {
 		t.Fatalf("Get = %+v, want scope/snapshot round-tripped", got)
 	}
 }
@@ -73,8 +74,10 @@ func TestListOrganizationExcludesActorScope(t *testing.T) {
 		t.Fatalf("Create org: %v", err)
 	}
 	actorJob := models.Job{
-		Scope: models.ScopeActor, SubjectActorID: "mem-1", RequestedAt: snap, SnapshotAt: snap,
-		Format: models.FormatCSVZip, Status: models.StatusBuilding, FileRemovedDueAt: models.DueAt(snap),
+		Scope: models.ScopeActor, SubjectActorID: "mem-1",
+		RequestedAt: models.FormatTime(snap), SnapshotAt: models.FormatTime(snap),
+		Format: models.FormatCSVZip, Status: models.StatusBuilding,
+		FileRemovedDueAt: models.FormatTime(models.DueAt(snap)),
 	}
 	if _, err := s.Create(ctx, actorJob); err != nil {
 		t.Fatalf("Create actor: %v", err)
@@ -150,7 +153,7 @@ func TestCompleteAndMarkFileRemoved(t *testing.T) {
 	if completed.FileGone() {
 		t.Fatalf("FileGone() true right after Complete, want false")
 	}
-	removed, err := s.MarkFileRemoved(ctx, created.ID, time.Time{})
+	removed, err := s.MarkFileRemoved(ctx, created.ID, "")
 	if err != nil {
 		t.Fatalf("MarkFileRemoved: %v", err)
 	}
@@ -167,7 +170,7 @@ func TestDueForRemoval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	due, err := s.DueForRemoval(ctx, time.Now().UTC(), 0)
+	due, err := s.DueForRemoval(ctx, models.Now(), 0)
 	if err != nil {
 		t.Fatalf("DueForRemoval: %v", err)
 	}

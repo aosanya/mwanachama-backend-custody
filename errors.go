@@ -46,6 +46,20 @@ func conflict(field string) error {
 	return &fieldError{err: ErrConflict, field: field}
 }
 
+var ErrUnknownScope = errors.New(`mwanachamacustody: scope must be "structure" or "subtree"`)
+
+var ErrUnknownActClass = errors.New("mwanachamacustody: unknown act class")
+
+var ErrUnknownEventChip = errors.New("mwanachamacustody: unknown custody chip")
+
+var ErrInvalidLimit = errors.New("mwanachamacustody: limit must be a positive integer")
+
+var ErrInvalidSince = errors.New("mwanachamacustody: since must be an RFC3339 timestamp")
+
+var ErrStructureIDRequired = errors.New("mwanachamacustody: structure id required")
+
+var ErrNotSelf = errors.New("mwanachamacustody: only the actor this record is about may read it")
+
 // SQLSTATE class 23 is "integrity constraint violation".
 const (
 	sqlstateNotNullViolation    = "23502"

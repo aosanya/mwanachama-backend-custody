@@ -1,19 +1,14 @@
 package models
 
-import "time"
-
 type Read struct {
-	// ID is the event's identity; one per read.
 	ID string
 
-	ActorID string
-	// ReadBy is the operator who spent the capability.
+	ActorID     string
 	ReadBy      string
 	StructureID string
-	// ReadAt is when, to the minute.
-	ReadAt time.Time
+	ReadAt      string
 
-	NotifiedAt *time.Time
+	NotifiedAt *string
 }
 
 func (r Read) Notified() bool { return r.NotifiedAt != nil }

@@ -7,14 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-
 	mwanachamacustody "github.com/aosanya/mwanachama-backend-custody"
-	"github.com/aosanya/mwanachama-backend-custody/routes"
 )
 
 // emptySubtreeResolver always answers "no descendants" with no error — a
@@ -27,7 +22,7 @@ func (emptySubtreeResolver) Subtree(ctx context.Context, structureID string) ([]
 }
 
 // TestListStructureActs_EmptySubtreeScopeLeaksOtherStructures pins DEV-1697:
-// CustodyStore.ListActs/.CountActsByClass only add a `chapter_id IN (...)`
+// CustodyStore.ListActs/.CountActsByClass only add a `structure_id IN (...)`
 // filter `if len(structures) > 0` — a scope resolver that legitimately
 // returns an empty, non-nil, no-error slice (a leaf structure with zero
 // descendants, or any resolver written to return "found nothing" rather
@@ -40,18 +35,8 @@ func (emptySubtreeResolver) Subtree(ctx context.Context, structureID string) ([]
 // should both read 1 (structure-A's own row only, none of
 // structure-B-SECRET's), and this comment should be updated accordingly.
 func TestListStructureActs_EmptySubtreeScopeLeaksOtherStructures(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("gorm.Open: %v", err)
-	}
-	tables := mwanachamacustody.DefaultTableNames()
-	if err := mwanachamacustody.Migrate(db, tables); err != nil {
-		t.Fatalf("Migrate: %v", err)
-	}
-	custody, err := mwanachamacustody.NewCustodyStore(db, tables, mwanachamacustody.SystemClock)
-	if err != nil {
-		t.Fatalf("NewCustodyStore: %v", err)
-	}
+	cm, _ := newManager(t, emptySubtreeResolver{})
+	custody := cm.Custody()
 
 	ctx := context.Background()
 	if _, err := custody.AppendAct(ctx, mwanachamacustody.StructureActLogEntry{
@@ -71,12 +56,7 @@ func TestListStructureActs_EmptySubtreeScopeLeaksOtherStructures(t *testing.T) {
 		t.Fatalf("seed B: %v", err)
 	}
 
-	mux := http.NewServeMux()
-	for _, rt := range routes.CustodyRoutes(custody, emptySubtreeResolver{}) {
-		mux.Handle(rt.Pattern(""), rt.Handler)
-	}
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	srv := serve(t, cm, "operator-1")
 
 	// A caller who can only see structure-A asks for its subtree act-log.
 	resp, err := http.Get(srv.URL + "/structures/structure-A/act-log?scope=subtree")
