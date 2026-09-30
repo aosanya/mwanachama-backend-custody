@@ -7,7 +7,13 @@ tree clean.
 
 Baseline: `go test ./...` passes, no Go file exceeds 300 lines.
 
-## Verdict
+> **Superseded 2026-09-30.** The conversion landed (board CU5) and this repo
+> now passes every gate; the re-audit is at the end of this page. What
+> follows is the audit as taken, kept because the two preconditions it
+> raised are the decisions the conversion turned on, and because the
+> carry-across list is the record of what had to survive.
+
+## Verdict (as audited, before the conversion)
 
 **Not converted — one gate of eighteen passes.** Conversion is warranted: this repo is
 small, GORM-backed (not entitygraph), and its objects are append-only or
@@ -223,3 +229,67 @@ These are pure additions and can land whatever the decisions are:
 - A `documentation/1. requirements/` record — this repo has none, which is
   why precondition 1 has no decision table to consult.
 - `documentation/4. qa/` is empty.
+
+---
+
+## Re-audit, 2026-09-30, after the conversion
+
+| # | Gate | Verdict |
+|---|------|---------|
+| 1 | Blueprint at root | pass — `custody.blueprint.json`, six objects |
+| 2 | Blueprint reached from Go | pass — `blueprint.go`, `//go:embed` + `sync.OnceValues` |
+| 3 | Domain specs (≥2) | pass — `mwanachama.custody.json` and `clinic.custody.json` |
+| 4 | No row structs | pass — `gormstore/` and `tables.go` deleted, no `AutoMigrate` anywhere |
+| 5 | Store is thin over `specstore` | pass — `store.go` is roles, a `store` alias and wrappers |
+| 6 | Constructor cross-check | pass — every constructor takes `(db, *spec.Spec)` and passes all six carriers |
+| 7 | Declared rules | pass — `validate.go` reads `required`/`values`/`matches`; `patterns.go` supplies `instant` |
+| 8 | Thin models | pass with a stated exception, below |
+| 9 | Operations declared | pass — `custody.operations.json` + `operations.go` |
+| 10 | Routes are an adapter | pass — `routes/routes.go` is 92 lines of sentinel map and builder ladder |
+| 11 | Gate is data | pass — `AnonymousActions` is an empty allowlist of action ids |
+| 12 | MCP is the same table | n/a — no `mcp/` package |
+| 13 | Provisioning | pass — `Provision` + `cmd/ddl` |
+| 14 | Guard tests | pass, with one unrun — below |
+| 15 | Depends on shared | pass |
+| 16 | Makefile | pass |
+| 17 | Documentation | pass — all four phases now carry a page |
+| 18 | House rules | pass — no comments in the new code, largest file 246 lines |
+
+### Gate 8's exception
+
+Three `Validate` methods survive in `models/`, and they should:
+
+- `Job.Validate` holds the rules a spec cannot state — `file_removed_due_at`
+  equals `snapshot_at` plus the retention window, `snapshot_at` is not before
+  `requested_at`, and the three actor-scope refusals. Its **enum** switches
+  on scope, format and status are gone; the declared `values` carry them.
+- `ProgressUpdate.Validate` and `Completion.Validate` are on types that are
+  **not declared objects at all** — they are partial-update commands, so
+  there is no blueprint field for a spec to validate them against.
+
+The two membership maps, their `IsX` functions and every per-field doc
+comment are gone.
+
+### Gate 14's caveat
+
+Five of the six guards were broken on purpose and watched go red. The sixth,
+`postgres_integration_test.go`, **has never been run**: no Postgres was
+reachable and standing one up for scratch verification is against this
+repo's own convention. It compiles and skips correctly. Board row CU4.
+
+One thing worth recording from that exercise: `TestTwoDomainsCoexist` is
+narrower than it looks. Giving the clinic `mwanachama`'s instance did **not**
+make it fail, because the table hash covers the domain's own table name too.
+It only failed once both the instance *and* the table names matched.
+
+### What the conversion did not do
+
+- **No legacy-adoption step**, because no live rows exist under the old
+  readable names — the gateway that created them has not started since it
+  stopped compiling. A fresh instance needs none. Confirm against `api.demo`
+  before provisioning anywhere real.
+- **No SQL mirror in the gateway's active `migrations/`.** The usual rule is
+  that every declared domain also needs one so `cmd/migrate up` alone can
+  provision a fresh database, but the gateway is retired by D3 and its
+  migration path is not being maintained. `cmd/ddl` prints the statements for
+  whatever does provision this module.
