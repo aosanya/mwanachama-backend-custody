@@ -18,20 +18,29 @@ type (
 
 	Read = models.Read
 
+	Scope          = models.Scope
+	Format         = models.Format
+	Status         = models.Status
+	Job            = models.Job
+	ProgressUpdate = models.ProgressUpdate
+	Completion     = models.Completion
+
 	ConsentScope = models.ConsentScope
 	Language     = models.Language
 	Effect       = models.Effect
 	Clause       = models.Clause
 	TextVersion  = models.TextVersion
+	Record       = models.Record
 )
 
-// ErrNotFound and ErrAlreadyPublished forward to their models. sentinels of
-// the same name, so a caller checking errors.Is against this package's own
-// name gets the identical error value models's callers already check
-// against.
 var (
-	ErrNotFound         = models.ErrNotFound
-	ErrAlreadyPublished = models.ErrAlreadyPublished
+	ErrNotFound              = models.ErrNotFound
+	ErrAlreadyPublished      = models.ErrAlreadyPublished
+	ErrInvalid               = models.ErrInvalid
+	ErrUnknownActKind        = models.ErrUnknownActKind
+	ErrUnknownEventKind      = models.ErrUnknownEventKind
+	ErrStructureRequired     = models.ErrStructureRequired
+	ErrResumeAlreadyRecorded = models.ErrResumeAlreadyRecorded
 )
 
 const (
@@ -51,10 +60,6 @@ const (
 	ActCheckStarted        = models.ActCheckStarted
 )
 
-// EventKind values named by a caller outside models/ — the gateway's own
-// break-glass, role-kind and survey-question composition. Not every
-// EventKind in [models.EventKinds] has an external caller; the rest stay
-// reachable as models.EventXxx for this repo's own use.
 const (
 	EventBreakGlassWrite         = models.EventBreakGlassWrite
 	EventKeysRotated             = models.EventKeysRotated
@@ -65,20 +70,13 @@ const (
 	EventSurveyQuestionVersioned = models.EventSurveyQuestionVersioned
 )
 
-// ChipOrganization and ChipPlatform are the two EventChip values a caller
-// outside models/ names directly; the rest of [models.EventChips] stay
-// reachable as models.ChipXxx.
 const (
 	ChipOrganization = models.ChipOrganization
 	ChipPlatform     = models.ChipPlatform
 )
 
-// ActClassOf maps a kind to its class, or ErrUnknownActKind. See
-// [models.ActClassOf].
 func ActClassOf(k ActKind) (ActClass, error) { return models.ActClassOf(k) }
 
-// ActKinds returns every kind that carries a class. See [models.ActKinds].
 func ActKinds() []ActKind { return models.ActKinds() }
 
-// EventKinds returns every kind that reaches a chip. See [models.EventKinds].
 func EventKinds() []EventKind { return models.EventKinds() }
