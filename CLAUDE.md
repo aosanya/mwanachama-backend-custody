@@ -200,7 +200,12 @@ is what would hide it:
 - Task status lives on
   [documentation/3. implementation/todo.md](documentation/3.%20implementation/todo.md).
 - Four-phase `documentation/` layout — see
-  [documentation/README.md](documentation/README.md).
+  [documentation/README.md](documentation/README.md). The reasoning the code
+  carries no comments for lives in
+  [2. design/storage.md](documentation/2.%20design/storage.md) and
+  [2. design/routes.md](documentation/2.%20design/routes.md); the decisions
+  the conversion turned on are in
+  [1. requirements/declared-domain-decisions.md](documentation/1.%20requirements/declared-domain-decisions.md).
 - `go test ./...` (sqlite via `glebarez/sqlite`) is the expected way to verify
   a change here — do not reach for a real Postgres. What SQLite cannot stand
   in for lives in `postgres_integration_test.go` (`//go:build integration`,
