@@ -26,6 +26,7 @@ type CustodyManager struct {
 	export   *ExportStore
 	contact  *ContactStore
 	consent  *ConsentStore
+	gate     *Consent
 	resolver ScopeResolver
 }
 
@@ -46,7 +47,12 @@ func NewCustodyManager(db *gorm.DB, s *spec.Spec, clock Clock, resolver ScopeRes
 	if err != nil {
 		return nil, err
 	}
+	ledger, err := NewDBWithdrawalLedger(db, consent.RecordTable()+"_withdrawal")
+	if err != nil {
+		return nil, err
+	}
 	return &CustodyManager{
+		gate:     NewConsent(consent, ledger, clock),
 		custody:  custody,
 		export:   export,
 		contact:  contact,
@@ -59,6 +65,12 @@ func (m *CustodyManager) Custody() models.CustodyRepository { return m.custody }
 func (m *CustodyManager) Export() models.ExportRepository   { return m.export }
 func (m *CustodyManager) Contact() models.ContactRepository { return m.contact }
 func (m *CustodyManager) Consent() models.ConsentRepository { return m.consent }
+
+func (m *CustodyManager) ConsentGate() *Consent { return m.gate }
+
+func (m *CustodyManager) WithdrawConsent(ctx context.Context, actorID string) (Withdrawal, error) {
+	return m.gate.Withdraw(ctx, actorID)
+}
 
 func (m *CustodyManager) actLogScope(ctx context.Context, structureID, scope string) ([]string, error) {
 	switch scope {

@@ -224,6 +224,23 @@
       ],
       "returns": [{ "body": true }]
     },
+    "withdraw_consent": {
+      "method": "POST",
+      "path": "/consent/withdraw",
+      "call": "WithdrawConsent",
+      "action": "custody.consent.withdraw",
+      "status": 201,
+      "title": "Withdraw the caller's consent",
+      "description": "Records that the caller withdrew consent now and tells every module that subscribed. The actor is the authenticated caller and never a body field: nobody withdraws for someone else. Later acts that need consent are refused until the actor agrees again.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "actor_id",
+          "description": "The authenticated caller, whose consent is withdrawn."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
     "publish_consent_version": {
       "method": "POST",
       "path": "/consent/versions/{versionID}/publish",
@@ -256,6 +273,8 @@
     "ErrInvalidLimit": 400,
     "ErrInvalidSince": 400,
     "ErrStructureIDRequired": 400,
-    "ErrNotSelf": 403
+    "ErrNotSelf": 403,
+    "ErrConsentRequired": 403,
+    "ErrConsentWithdrawn": 403
   }
 }

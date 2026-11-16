@@ -107,3 +107,31 @@ func TestGateHelperIsOpenWhenNoGateIsWired(t *testing.T) {
 		t.Fatalf("Gate = %v", err)
 	}
 }
+
+func TestDBLedgerKeepsTheLatestWithdrawalAcrossInstances(t *testing.T) {
+	db, _ := newTestDB(t)
+	ctx := context.Background()
+	first, err := mwanachamacustody.NewDBWithdrawalLedger(db, "test_withdrawal")
+	if err != nil {
+		t.Fatalf("NewDBWithdrawalLedger: %v", err)
+	}
+	for _, at := range []time.Time{time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)} {
+		if err := first.Record(ctx, mwanachamacustody.Withdrawal{ActorID: "mem-1", WithdrawnAt: models.FormatTime(at)}); err != nil {
+			t.Fatalf("Record: %v", err)
+		}
+	}
+	second, err := mwanachamacustody.NewDBWithdrawalLedger(db, "test_withdrawal")
+	if err != nil {
+		t.Fatalf("second NewDBWithdrawalLedger: %v", err)
+	}
+	got, ok, err := second.Latest(ctx, "mem-1")
+	if err != nil || !ok || got.WithdrawnAt != models.FormatTime(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("Latest = %+v, %v, %v", got, ok, err)
+	}
+	if _, ok, _ := second.Latest(ctx, "mem-2"); ok {
+		t.Fatalf("Latest for another actor found a withdrawal")
+	}
+	if _, err := mwanachamacustody.NewDBWithdrawalLedger(db, "bad name; drop"); err == nil {
+		t.Fatalf("a table name with spaces was accepted")
+	}
+}

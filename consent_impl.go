@@ -26,6 +26,8 @@ func NewConsentStore(db *gorm.DB, s *spec.Spec) (*ConsentStore, error) {
 	return &ConsentStore{db: db, st: st}, nil
 }
 
+func (s *ConsentStore) RecordTable() string { return s.st.Table(RoleConsentRecord) }
+
 func (s *ConsentStore) CreateVersion(ctx context.Context, v models.TextVersion) (models.TextVersion, error) {
 	v.PublishedAt, v.PublishedBy, v.SupersededAt = nil, "", nil
 	v.CopiedMechanicsID = ""

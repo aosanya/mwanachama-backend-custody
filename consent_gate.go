@@ -6,19 +6,20 @@ import (
 	"sync"
 
 	"github.com/aosanya/mwanachama-backend-custody/models"
+	"github.com/aosanya/mwanachama-backend-shared/consent"
 )
 
-var ErrConsentRequired = errors.New("mwanachamacustody: no consent on record for this actor")
+var ErrConsentRequired = consent.ErrRequired
 
-var ErrConsentWithdrawn = errors.New("mwanachamacustody: consent was withdrawn")
+var ErrConsentWithdrawn = consent.ErrWithdrawn
 
 type ConsentGate interface {
 	Check(ctx context.Context, actorID string) error
 }
 
 type Withdrawal struct {
-	ActorID     string
-	WithdrawnAt string
+	ActorID     string `json:"actor_id"`
+	WithdrawnAt string `json:"withdrawn_at"`
 }
 
 type WithdrawalSubscriber func(ctx context.Context, w Withdrawal) error
