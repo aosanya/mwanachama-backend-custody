@@ -2,6 +2,7 @@ package mwanachamacustody
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -92,11 +93,39 @@ func (m *CustodyManager) GiveConsent(ctx context.Context, in GiveConsentInput) (
 	if in.Language == "" {
 		in.Language = models.LanguageEnglish
 	}
+	standing, found, err := m.standingAgreement(ctx, in.ActorID, in.Language)
+	if err != nil {
+		return models.Record{}, err
+	}
+	if found {
+		return standing, nil
+	}
 	agreedAt, err := m.gate.AgreementInstant(ctx, in.ActorID)
 	if err != nil {
 		return models.Record{}, err
 	}
 	return Enroll(ctx, m.consent, in.ActorID, in.StructureID, in.Language, models.FormatTime(agreedAt))
+}
+
+func (m *CustodyManager) standingAgreement(ctx context.Context, actorID string, language models.Language) (models.Record, bool, error) {
+	if err := m.gate.Check(ctx, actorID); err != nil {
+		if errors.Is(err, ErrConsentRequired) || errors.Is(err, ErrConsentWithdrawn) {
+			return models.Record{}, false, nil
+		}
+		return models.Record{}, false, err
+	}
+	current, err := m.consent.CurrentForActor(ctx, actorID)
+	if err != nil {
+		return models.Record{}, false, err
+	}
+	inForce, err := m.consent.GetInForce(ctx, models.ScopeMechanics, language)
+	if err != nil {
+		if errors.Is(err, models.ErrNotFound) {
+			return models.Record{}, false, nil
+		}
+		return models.Record{}, false, err
+	}
+	return current, current.MechanicsVersionID == inForce.ID, nil
 }
 
 func (m *CustodyManager) actLogScope(ctx context.Context, structureID, scope string) ([]string, error) {
