@@ -90,7 +90,11 @@ func (m *CustodyManager) GiveConsent(ctx context.Context, in GiveConsentInput) (
 	if in.Language == "" {
 		in.Language = models.LanguageEnglish
 	}
-	return Enroll(ctx, m.consent, in.ActorID, in.StructureID, in.Language, models.FormatTime(m.clock()))
+	agreedAt, err := m.gate.AgreementInstant(ctx, in.ActorID)
+	if err != nil {
+		return models.Record{}, err
+	}
+	return Enroll(ctx, m.consent, in.ActorID, in.StructureID, in.Language, models.FormatTime(agreedAt))
 }
 
 func (m *CustodyManager) actLogScope(ctx context.Context, structureID, scope string) ([]string, error) {

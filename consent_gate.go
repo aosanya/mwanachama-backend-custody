@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/aosanya/mwanachama-backend-custody/models"
 	"github.com/aosanya/mwanachama-backend-shared/consent"
@@ -105,6 +106,22 @@ func (c *Consent) Check(ctx context.Context, actorID string) error {
 		return nil
 	}
 	return ErrConsentWithdrawn
+}
+
+func (c *Consent) AgreementInstant(ctx context.Context, actorID string) (time.Time, error) {
+	now := c.now()
+	w, found, err := c.ledger.Latest(ctx, actorID)
+	if err != nil || !found {
+		return now, err
+	}
+	withdrawn, err := models.ParseTime(w.WithdrawnAt)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if now.After(withdrawn) {
+		return now, nil
+	}
+	return withdrawn.Add(time.Nanosecond), nil
 }
 
 func (c *Consent) Withdraw(ctx context.Context, actorID string) (Withdrawal, error) {

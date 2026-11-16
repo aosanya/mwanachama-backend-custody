@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-const TimeLayout = time.RFC3339
+const TimeLayout = "2006-01-02T15:04:05.000000000Z07:00"
 
 func Now() string { return FormatTime(time.Now()) }
 
@@ -14,5 +14,5 @@ func FormatTime(t time.Time) string {
 }
 
 func ParseTime(s string) (time.Time, error) {
-	return time.Parse(TimeLayout, s)
+	return time.Parse(time.RFC3339Nano, s)
 }
