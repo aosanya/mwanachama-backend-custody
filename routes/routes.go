@@ -11,6 +11,8 @@ type Route = httpwire.Route
 
 type Mount = dispatch.Mount
 
+type Tool = dispatch.Tool
+
 var Sentinels = map[string]error{
 	"ErrNotFound":            mwanachamacustody.ErrNotFound,
 	"ErrConsentRequired":     mwanachamacustody.ErrConsentRequired,
@@ -40,3 +42,13 @@ func BuildFor(cm *mwanachamacustody.CustodyManager, m Mount) ([]Route, error) {
 func RoutesFor(cm *mwanachamacustody.CustodyManager, m Mount) []Route { return Table.Routes(cm, m) }
 
 func Split(cm *mwanachamacustody.CustodyManager, m Mount) dispatch.Split { return Table.Split(cm, m) }
+
+func BuildTools(cm *mwanachamacustody.CustodyManager, m Mount) ([]Tool, error) {
+	spec, err := Table.Spec()
+	if err != nil {
+		return nil, err
+	}
+	return dispatch.Tools(spec, dispatch.Deps{
+		Manager: cm, Errors: Sentinels, Authorize: m.Authorize, Caller: m.Caller, Device: m.Device,
+	})
+}

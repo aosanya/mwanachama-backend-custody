@@ -5,6 +5,7 @@
       "path": "/structures/{structureID}/act-log",
       "call": "ListStructureActs",
       "action": "custody.structure_act.list",
+      "tool": false,
       "title": "Read a structure's act log",
       "description": "One structure's record of what its leadership did, newest first. scope=subtree widens it to the structure's descendant closure, which an externally supplied resolver walks.",
       "args": [
@@ -37,6 +38,7 @@
       "path": "/structures/{structureID}/act-log/counts",
       "call": "CountStructureActs",
       "action": "custody.structure_act.count",
+      "tool": false,
       "title": "Tally a structure's acts by class",
       "description": "The per-class tally and its total, over one query so the counts sum to what a concurrent listing would see. Every declared class appears, including the ones at zero.",
       "args": [
@@ -64,6 +66,7 @@
       "path": "/custody-log",
       "call": "ListCustodyEvents",
       "action": "custody.event.list",
+      "tool": false,
       "title": "Read the organization's custody log",
       "description": "Everything done to the organization's data as data, newest first.",
       "args": [
@@ -85,6 +88,7 @@
       "path": "/custody-log/counts",
       "call": "CountCustodyEvents",
       "action": "custody.event.count",
+      "tool": false,
       "title": "Tally the custody log by chip",
       "description": "The per-chip tally and its total, for the act log's reason. Every declared chip appears, including the ones at zero.",
       "args": [
@@ -101,6 +105,7 @@
       "path": "/export-jobs/{jobID}",
       "call": "GetExportJob",
       "action": "custody.export_job.get",
+      "tool": false,
       "title": "Read one export job",
       "description": "Deliberately unscoped: it must not be reachable without a check on the row it returns, which is the mounting process's job.",
       "args": [
@@ -118,6 +123,7 @@
       "path": "/export-jobs",
       "call": "ListOrganizationExports",
       "action": "custody.export_job.list",
+      "tool": false,
       "title": "List the organization's export jobs",
       "description": "Organization-scoped jobs only. The two export policies are never one with an or, so an actor's own exports are a separate address.",
       "args": [],
@@ -128,6 +134,7 @@
       "path": "/actors/{actorID}/export-jobs",
       "call": "ListActorExports",
       "action": "custody.export_job.list_own",
+      "tool": false,
       "title": "List an actor's own export jobs",
       "description": "Readable only by the actor the jobs are about. The caller comes from the session rather than the address, so a caller naming someone else is refused instead of answered.",
       "args": [
@@ -150,6 +157,7 @@
       "path": "/actors/{actorID}/contact-reads",
       "call": "ListContactReads",
       "action": "custody.contact_read.list_own",
+      "tool": false,
       "title": "List who read an actor's contact details",
       "description": "The subject's own view, readable only by them. Undecorated: operator, role and structure names live on other objects and are composed by whatever mounts this.",
       "args": [
@@ -172,6 +180,7 @@
       "path": "/consent/versions/in-force/{scope}/{language}",
       "call": "GetConsentVersionInForce",
       "action": "custody.consent_version.in_force",
+      "tool": false,
       "title": "Read the consent version currently in force",
       "description": "The greatest published_at with no superseded_at, within one scope and language. Nothing published there is a not-found, which is an ordinary state.",
       "args": [
@@ -195,6 +204,7 @@
       "path": "/consent/versions/{versionID}",
       "call": "GetConsentVersion",
       "action": "custody.consent_version.get",
+      "tool": false,
       "title": "Read one consent version",
       "description": "Reads back the exact wording a consent record pins, whether or not it is still in force.",
       "args": [
@@ -212,6 +222,7 @@
       "path": "/consent/versions",
       "call": "CreateConsentVersion",
       "action": "custody.consent_version.create",
+      "tool": false,
       "status": 201,
       "title": "Draft a consent version",
       "description": "Creates an unpublished version. The publication fields are not accepted from a caller: accepting them would let one mint text already in force, naming a publisher who never published.",
@@ -229,6 +240,7 @@
       "path": "/consent/withdraw",
       "call": "WithdrawConsent",
       "action": "custody.consent.withdraw",
+      "tool": "custody_withdraw_consent",
       "status": 201,
       "title": "Withdraw the caller's consent",
       "description": "Records that the caller withdrew consent now and tells every module that subscribed. The actor is the authenticated caller and never a body field: nobody withdraws for someone else. Later acts that need consent are refused until the actor agrees again.",
@@ -246,6 +258,7 @@
       "path": "/consent/agree",
       "call": "GiveConsent",
       "action": "custody.consent.give",
+      "tool": "custody_agree_consent",
       "status": 201,
       "title": "Give the caller's consent",
       "description": "Records that the caller agreed to the consent sheet now in force, in the language given (the agency's content default language when left out). The actor is the authenticated caller and never a body field: nobody agrees for someone else. Acts that need consent are admitted from this moment, including after an earlier withdrawal. Refused with a conflict while no mechanics version is in force in that language.",
@@ -269,6 +282,7 @@
       "path": "/consent/mine",
       "call": "GetMyConsent",
       "action": "custody.consent.mine",
+      "tool": "custody_get_my_consent",
       "title": "Read the caller's own consent state",
       "description": "Says whether the caller has agreed, has withdrawn since agreeing, or has not agreed yet, with when and to which mechanics version. The actor is the authenticated caller and never a path or body field: nobody reads another person's consent state.",
       "args": [
@@ -285,6 +299,7 @@
       "path": "/consent/versions/{versionID}/publish",
       "call": "PublishConsentVersion",
       "action": "custody.consent_version.publish",
+      "tool": false,
       "title": "Publish a consent version",
       "description": "Brings one version into force and supersedes whichever held that scope and language, atomically. publishedBy is the authenticated caller and never a body field: an act that creates authority names who did it.",
       "args": [
@@ -293,6 +308,73 @@
           "as": "versionID",
           "required": true,
           "description": "The version to publish."
+        },
+        {
+          "from": "caller",
+          "as": "published_by",
+          "description": "The authenticated caller, recorded as the publisher."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "list_consent_versions": {
+      "method": "GET",
+      "path": "/consent/versions",
+      "call": "ListConsentVersions",
+      "action": "custody.consent_version.list",
+      "tool": "custody_list_consent_versions",
+      "title": "List the versions of the consent text",
+      "description": "Every version of one half of the consent sheet in one language, newest first, each with its version label, when it was published and whether it is the one in force. Scope and language left out mean the mechanics half in the agency's content default language.",
+      "args": [
+        {
+          "from": "query",
+          "as": "scope",
+          "description": "Which half of the sheet: mechanics, appendix or public_sheet. Empty means mechanics."
+        },
+        {
+          "from": "query",
+          "as": "language",
+          "description": "Which language rendering. Empty means the agency's content default language."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "read_in_force_consent": {
+      "method": "GET",
+      "path": "/consent/in-force",
+      "call": "GetInForceConsent",
+      "action": "custody.consent_text.read",
+      "tool": "custody_get_in_force_consent",
+      "title": "Read the consent text in force",
+      "description": "The consent text a resident is asked to agree to now. Scope and language left out mean the mechanics half in the agency's content default language. Nothing published there is a not-found, which is an ordinary state.",
+      "args": [
+        {
+          "from": "query",
+          "as": "scope",
+          "description": "Which half of the sheet: mechanics, appendix or public_sheet. Empty means mechanics."
+        },
+        {
+          "from": "query",
+          "as": "language",
+          "description": "Which language rendering. Empty means the agency's content default language."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
+    "publish_consent_text": {
+      "method": "POST",
+      "path": "/consent/text",
+      "call": "PublishConsentText",
+      "action": "custody.consent_text.publish",
+      "tool": "custody_publish_consent_version",
+      "status": 201,
+      "title": "Publish a new consent text",
+      "description": "Creates the next version of the consent text from the text given and brings it into force in one step, superseding the version that held that scope and language. The text is required and at most 2000 characters. publishedBy is the authenticated caller and never a body field.",
+      "args": [
+        {
+          "from": "body",
+          "whole": true,
+          "description": "The text, required and at most 2000 characters, and optionally the scope and language it is for."
         },
         {
           "from": "caller",
