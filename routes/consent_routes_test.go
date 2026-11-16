@@ -55,6 +55,9 @@ func TestCreateConsentVersion_DuplicateNaturalKeyReturns409(t *testing.T) {
 	if status != http.StatusConflict {
 		t.Fatalf("duplicate natural key = %d %+v, want 409", status, out)
 	}
+	if want := "already exists: scope, version, language"; out["error"] != want {
+		t.Fatalf("duplicate natural key message = %q, want %q", out["error"], want)
+	}
 }
 
 func TestCreateConsentVersionRefusesUnknownScopeAndLanguageWith400(t *testing.T) {

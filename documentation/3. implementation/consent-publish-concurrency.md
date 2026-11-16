@@ -29,6 +29,12 @@ Hub issue CU10. The next label is `"v"` plus the highest number among the labels
 
 `consent_text_taken_label_test.go` pre-creates `v2` and asserts that a publish succeeds as `v3` and is the one in force. On the commit before the change it fails with the conflict.
 
+## What a 409 shows
+
+Hub issue CU11. The text of `ErrConflict` carries the fields of the unique index that was hit and nothing else: `already exists: scope, version, language` for a repeated natural key, `already exists: id` for a repeated id. The generated table name, the index name, the values and the driver code (2067, 1555) never reach the caller, over HTTP or in the MCP tool answer. `classify` in `errors.go` takes the column list out of the SQLite message and out of the `Key (...)=` part of the Postgres detail; the columns are the declared field names, so no table name is written anywhere in the code. A violation that names an index instead of columns, or a Postgres error without a detail, answers the plain `already exists`.
+
+`routes/consent_conflict_body_test.go` posts the same version twice and the same id twice and asserts the body has no `mwanachama_` and no `(number)`; `routes/consent_routes_test.go` asserts the whole message; `errors_unique_fields_test.go` covers the Postgres detail and the index case without a Postgres. The two route tests fail on the commit before the change.
+
 ## Proof
 
 `consent_text_concurrent_test.go` sends 8 publishes at once, five rounds on a fresh database each, on a SQLite file with several connections and on an in-memory SQLite database with one connection, and once more across two managers on one database. All must succeed, the labels must be v1 to v8 with no repeat, and exactly one version, the highest, must be in force. Before the fix the first two cases failed on the first round with the unique violation.

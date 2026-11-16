@@ -80,7 +80,7 @@ func classify(err error) error {
 		case sqlstateForeignKeyViolation, sqlstateNotNullViolation, sqlstateCheckViolation:
 			return reference(constraintOf(pgErr))
 		case sqlstateUniqueViolation:
-			return conflict(constraintOf(pgErr))
+			return conflict(uniqueFieldsOfPostgres(pgErr))
 		default:
 			return err
 		}
@@ -88,7 +88,7 @@ func classify(err error) error {
 	msg := err.Error()
 	switch {
 	case strings.Contains(msg, "UNIQUE constraint failed"):
-		return conflict(sqliteConstraintOf(msg))
+		return conflict(uniqueFieldsOfSQLite(msg))
 	case strings.Contains(msg, "FOREIGN KEY constraint failed"),
 		strings.Contains(msg, "NOT NULL constraint failed"),
 		strings.Contains(msg, "CHECK constraint failed"):
@@ -96,6 +96,33 @@ func classify(err error) error {
 	default:
 		return err
 	}
+}
+
+func uniqueFieldsOfSQLite(msg string) string {
+	list := sqliteConstraintOf(msg)
+	if i := strings.LastIndex(list, " ("); i >= 0 {
+		list = list[:i]
+	}
+	if strings.HasPrefix(list, "index ") {
+		return ""
+	}
+	columns := strings.Split(list, ", ")
+	for i, column := range columns {
+		columns[i] = column[strings.LastIndex(column, ".")+1:]
+	}
+	return strings.Join(columns, ", ")
+}
+
+func uniqueFieldsOfPostgres(pgErr *pgconn.PgError) string {
+	rest, found := strings.CutPrefix(pgErr.Detail, "Key (")
+	if !found {
+		return ""
+	}
+	columns, _, found := strings.Cut(rest, ")=")
+	if !found {
+		return ""
+	}
+	return columns
 }
 
 func sqliteConstraintOf(msg string) string {
