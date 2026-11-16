@@ -27,10 +27,14 @@ type CustodyManager struct {
 	contact  *ContactStore
 	consent  *ConsentStore
 	gate     *Consent
+	clock    Clock
 	resolver ScopeResolver
 }
 
 func NewCustodyManager(db *gorm.DB, s *spec.Spec, clock Clock, resolver ScopeResolver) (*CustodyManager, error) {
+	if clock == nil {
+		clock = SystemClock
+	}
 	custody, err := NewCustodyStore(db, s, clock)
 	if err != nil {
 		return nil, err
@@ -57,6 +61,7 @@ func NewCustodyManager(db *gorm.DB, s *spec.Spec, clock Clock, resolver ScopeRes
 		export:   export,
 		contact:  contact,
 		consent:  consent,
+		clock:    clock,
 		resolver: resolver,
 	}, nil
 }
@@ -70,6 +75,22 @@ func (m *CustodyManager) ConsentGate() *Consent { return m.gate }
 
 func (m *CustodyManager) WithdrawConsent(ctx context.Context, actorID string) (Withdrawal, error) {
 	return m.gate.Withdraw(ctx, actorID)
+}
+
+type GiveConsentInput struct {
+	ActorID     string          `json:"actor_id"`
+	StructureID string          `json:"structure_id"`
+	Language    models.Language `json:"language"`
+}
+
+func (m *CustodyManager) GiveConsent(ctx context.Context, in GiveConsentInput) (models.Record, error) {
+	if in.ActorID == "" {
+		return models.Record{}, ErrConsentRequired
+	}
+	if in.Language == "" {
+		in.Language = models.LanguageEnglish
+	}
+	return Enroll(ctx, m.consent, in.ActorID, in.StructureID, in.Language, models.FormatTime(m.clock()))
 }
 
 func (m *CustodyManager) actLogScope(ctx context.Context, structureID, scope string) ([]string, error) {

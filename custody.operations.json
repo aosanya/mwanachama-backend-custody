@@ -241,6 +241,29 @@
       ],
       "returns": [{ "body": true }]
     },
+    "give_consent": {
+      "method": "POST",
+      "path": "/consent/agree",
+      "call": "GiveConsent",
+      "action": "custody.consent.give",
+      "status": 201,
+      "title": "Give the caller's consent",
+      "description": "Records that the caller agreed to the consent sheet now in force, in the language given (English when left out). The actor is the authenticated caller and never a body field: nobody agrees for someone else. Acts that need consent are admitted from this moment, including after an earlier withdrawal. Refused with a conflict while no mechanics version is in force in that language.",
+      "args": [
+        {
+          "from": "body",
+          "whole": true,
+          "description": "The language the caller read the sheet in, and the structure the record is stamped at, both optional."
+        },
+        {
+          "from": "caller",
+          "as": "actor_id",
+          "into": "ActorID",
+          "description": "The authenticated caller, who is the one agreeing."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
     "publish_consent_version": {
       "method": "POST",
       "path": "/consent/versions/{versionID}/publish",
@@ -274,6 +297,7 @@
     "ErrInvalidSince": 400,
     "ErrStructureIDRequired": 400,
     "ErrNotSelf": 403,
+    "ErrNoMechanicsInForce": 409,
     "ErrConsentRequired": 403,
     "ErrConsentWithdrawn": 403
   }
