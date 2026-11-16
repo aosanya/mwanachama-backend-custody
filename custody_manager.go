@@ -241,7 +241,9 @@ func (m *CustodyManager) ListContactReads(ctx context.Context, actorID, callerID
 }
 
 func (m *CustodyManager) GetConsentVersionInForce(ctx context.Context, scope, language string) (models.TextVersion, error) {
-	return m.consent.GetInForce(ctx, models.ConsentScope(scope), models.Language(language))
+	sheet, err := m.consent.GetInForce(ctx, models.ConsentScope(scope), models.Language(language))
+	sheet.PublishedBy = ""
+	return sheet, err
 }
 
 func (m *CustodyManager) GetConsentVersion(ctx context.Context, versionID string) (models.TextVersion, error) {
