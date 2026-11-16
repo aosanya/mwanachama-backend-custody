@@ -58,10 +58,10 @@ func checkField(o spec.Object, column, value string) error {
 
 func checkValue(o spec.Object, f spec.Field, value string) error {
 	if f.Required && strings.TrimSpace(value) == "" {
-		return fmt.Errorf("%s: %s is required", o.Name, f.Name)
+		return invalidValue("%s: %s is required", o.Name, f.Name)
 	}
 	if f.Type == spec.TypeEnum && !declares(f.Values, value) {
-		return fmt.Errorf("%s: %s is %q, which is not one of %s",
+		return invalidValue("%s: %s is %q, which is not one of %s",
 			o.Name, f.Name, value, strings.Join(f.Values, ", "))
 	}
 	if f.Matches != "" && value != "" {
@@ -71,7 +71,7 @@ func checkValue(o spec.Object, f spec.Field, value string) error {
 				o.Name, f.Name, f.Matches)
 		}
 		if !ok(value) {
-			return fmt.Errorf("%s: %s does not match %s", o.Name, f.Name, f.Matches)
+			return invalidValue("%s: %s does not match %s", o.Name, f.Name, f.Matches)
 		}
 	}
 	return nil

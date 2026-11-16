@@ -23,6 +23,7 @@ var Sentinels = map[string]error{
 	"ErrInvalidSince":        mwanachamacustody.ErrInvalidSince,
 	"ErrStructureIDRequired": mwanachamacustody.ErrStructureIDRequired,
 	"ErrNotSelf":             mwanachamacustody.ErrNotSelf,
+	"ErrInvalidValue":        mwanachamacustody.ErrInvalidValue,
 	"ErrNoMechanicsInForce":  mwanachamacustody.ErrNoMechanicsInForce,
 }
 

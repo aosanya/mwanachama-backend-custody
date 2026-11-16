@@ -2,6 +2,7 @@ package mwanachamacustody
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -11,6 +12,17 @@ import (
 var ErrInvalidReference = errors.New("mwanachamacustody: invalid reference")
 
 var ErrConflict = errors.New("mwanachamacustody: already exists")
+
+var ErrInvalidValue = errors.New("mwanachamacustody: invalid value")
+
+type valueError struct{ message string }
+
+func (e *valueError) Error() string        { return e.message }
+func (e *valueError) Is(target error) bool { return target == ErrInvalidValue }
+
+func invalidValue(format string, args ...any) error {
+	return &valueError{message: fmt.Sprintf(format, args...)}
+}
 
 type fieldError struct {
 	err   error

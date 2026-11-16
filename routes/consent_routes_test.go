@@ -28,20 +28,6 @@ func postJSON(t *testing.T, url, body string) (int, map[string]any) {
 	return resp.StatusCode, out
 }
 
-// TestCreateConsentVersion_HonorsCallerSuppliedID pins DEV-1695: POST
-// /consent/versions accepts a caller-supplied "id" and stores it verbatim,
-// letting any caller choose (and squat) the primary key of a
-// consent_text_version row instead of the server minting one. This is the
-// same caller-supplied-server-owned-field class the fleet already fixed
-// elsewhere (mwanachama-backend-agency's AG21/WK17: "every Create<Type>
-// method now owns ID/CreatedAt"), just not applied here.
-//
-// Once DEV-1695 is fixed (ConsentStore.CreateVersion clearing v.ID before
-// insert, the way it already clears PublishedAt/PublishedBy/SupersededAt/
-// CopiedMechanicsID), this assertion inverts: the returned id will be a
-// server-minted "consentversion-..." id, not the literal string this test
-// sends, and the test should be rewritten to assert the caller-supplied id
-// is ignored.
 func TestCreateConsentVersion_HonorsCallerSuppliedID(t *testing.T) {
 	srv := newConsentTestServer(t)
 
@@ -51,25 +37,12 @@ func TestCreateConsentVersion_HonorsCallerSuppliedID(t *testing.T) {
 	if status != http.StatusCreated {
 		t.Fatalf("status = %d, want 201: %+v", status, out)
 	}
-	// Pins the current (broken) behavior: the caller's own literal id comes
-	// straight back, proving the server never minted its own.
+
 	if out["id"] != "attacker-chosen-id" {
 		t.Fatalf("DEV-1695 appears fixed (server now controls id) — got %+v; update this test to assert the caller-supplied id was ignored instead", out)
 	}
 }
 
-// TestCreateConsentVersion_DuplicateNaturalKeyReturns500NotConflict pins
-// DEV-1696: routes.writeConsentErr's switch only maps
-// mwanachamacustody.ErrNotFound/ErrAlreadyPublished — a genuine
-// mwanachamacustody.ErrConflict (the store's own documented behavior for a
-// second row on the same (scope, version, language) triple) falls through
-// to the default branch and comes back as a bare 500 "internal error"
-// instead of 409, hiding a normal, expected refusal behind an opaque
-// server-error status.
-//
-// Once DEV-1696 is fixed (writeConsentErr gaining an
-// errors.Is(err, mwanachamacustody.ErrConflict) case mapping to 409), this
-// assertion inverts: expect 409, not 500.
 func TestCreateConsentVersion_DuplicateNaturalKeyReturns500NotConflict(t *testing.T) {
 	srv := newConsentTestServer(t)
 
@@ -84,5 +57,18 @@ func TestCreateConsentVersion_DuplicateNaturalKeyReturns500NotConflict(t *testin
 	}
 	if out["error"] != "internal error" {
 		t.Fatalf("expected the generic masked message, got %+v", out)
+	}
+}
+
+func TestCreateConsentVersionRefusesUnknownScopeAndLanguageWith400(t *testing.T) {
+	srv := newConsentTestServer(t)
+	for name, body := range map[string]string{
+		"unknown scope":    `{"scope":"x","version":"1","language":"en"}`,
+		"unknown language": `{"scope":"mechanics","version":"1","language":"fr"}`,
+		"empty body":       `{}`,
+	} {
+		if status, out := postJSON(t, srv.URL+"/consent/versions", body); status != http.StatusBadRequest {
+			t.Errorf("%s = %d (%v), want 400", name, status, out)
+		}
 	}
 }

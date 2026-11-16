@@ -297,6 +297,7 @@
     "ErrInvalidSince": 400,
     "ErrStructureIDRequired": 400,
     "ErrNotSelf": 403,
+    "ErrInvalidValue": 400,
     "ErrNoMechanicsInForce": 409,
     "ErrConsentRequired": 403,
     "ErrConsentWithdrawn": 403
