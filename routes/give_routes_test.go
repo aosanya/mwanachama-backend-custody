@@ -107,3 +107,26 @@ func TestGiveRouteIsAConflictWhileNoSheetIsInForce(t *testing.T) {
 		t.Fatalf("agree with no sheet = %d (%v), want 409", status, out)
 	}
 }
+
+func TestGiveRouteRecordsConsentToAHungarianSheet(t *testing.T) {
+	cm, _ := newManager(t, nil)
+	ctx := context.Background()
+	v, err := cm.Consent().CreateVersion(ctx, models.TextVersion{Scope: models.ScopeMechanics, Version: "v1", Language: models.Language("hu")})
+	if err != nil {
+		t.Fatalf("CreateVersion in hu: %v", err)
+	}
+	if _, err := cm.Consent().PublishVersion(ctx, v.ID, "admin-1", models.Now()); err != nil {
+		t.Fatalf("PublishVersion in hu: %v", err)
+	}
+	srv := serve(t, cm, "resident-1")
+	status, out := postJSON(t, srv.URL+"/consent/agree", `{"language":"hu"}`)
+	if status != http.StatusCreated {
+		t.Fatalf("agree in hu = %d (%v), want 201", status, out)
+	}
+	if out["language"] != "hu" {
+		t.Fatalf("recorded language = %v, want hu", out["language"])
+	}
+	if err := cm.ConsentGate().Check(ctx, "resident-1"); err != nil {
+		t.Fatalf("Check after agreeing in hu = %v", err)
+	}
+}

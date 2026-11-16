@@ -115,9 +115,10 @@ const (
 type Language string
 
 const (
-	LanguageEnglish Language = "en"
-	LanguageSwahili Language = "sw"
-	LanguageLuo     Language = "luo"
+	LanguageEnglish   Language = "en"
+	LanguageSwahili   Language = "sw"
+	LanguageLuo       Language = "luo"
+	LanguageHungarian Language = "hu"
 )
 
 type Effect string
