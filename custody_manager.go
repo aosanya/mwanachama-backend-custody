@@ -27,6 +27,7 @@ type CustodyManager struct {
 	contact  *ContactStore
 	consent  *ConsentStore
 	gate     *Consent
+	ledger   *DBWithdrawalLedger
 	clock    Clock
 	resolver ScopeResolver
 }
@@ -57,6 +58,7 @@ func NewCustodyManager(db *gorm.DB, s *spec.Spec, clock Clock, resolver ScopeRes
 	}
 	return &CustodyManager{
 		gate:     NewConsent(consent, ledger, clock),
+		ledger:   ledger,
 		custody:  custody,
 		export:   export,
 		contact:  contact,

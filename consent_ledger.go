@@ -71,4 +71,10 @@ func (l *DBWithdrawalLedger) Latest(ctx context.Context, actorID string) (Withdr
 	return Withdrawal{ActorID: actorID, WithdrawnAt: best}, true, nil
 }
 
+func (l *DBWithdrawalLedger) Actors(ctx context.Context) ([]string, error) {
+	var actors []string
+	err := l.db.WithContext(ctx).Table(l.table).Distinct("actor_id").Order("actor_id").Pluck("actor_id", &actors).Error
+	return actors, err
+}
+
 var _ WithdrawalLedger = (*DBWithdrawalLedger)(nil)
