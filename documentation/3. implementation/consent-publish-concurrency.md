@@ -17,6 +17,12 @@ Two publishes at the same moment behave like two publishes one after the other: 
 - `ErrConflict` is mapped to 409 in `Sentinels` and in the `errors` table of `custody.operations.json`, so a conflict on any create is a clean refusal and never "internal error". The test that recorded DEV-1696 as a 500 now asserts the 409.
 - On Postgres, `PublishVersion` takes `pg_advisory_xact_lock` on the scope and language before it supersedes, then re-reads the version, so two transactions cannot both leave a version in force. SQLite writes are already one at a time. The Postgres branch is only reached with a Postgres database; the `integration` build tag test file is where it would be exercised.
 
+## A publish that fails after its draft
+
+Hub issue CU9. Drafting and publishing are two steps. When the publish fails (a transient database error, a busy lock, a cancelled request), `PublishConsentText` deletes the draft it made, with a context that outlives the request, and returns the publish error. The delete only touches a row that is still unpublished and only the row this call made, so a draft someone made by hand with `custody_create_consent_version` is never removed. The choice was a delete rather than one transaction around both steps because the publish already runs its own transaction and the store would have to nest them.
+
+`consent_text_failed_publish_test.go` makes the first update fail once, then asserts that no row is left, that the next publish is v1 and that it is the only row and in force. On 0601f7f it fails with one leftover row.
+
 ## Proof
 
 `consent_text_concurrent_test.go` sends 8 publishes at once, five rounds on a fresh database each, on a SQLite file with several connections and on an in-memory SQLite database with one connection, and once more across two managers on one database. All must succeed, the labels must be v1 to v8 with no repeat, and exactly one version, the highest, must be in force. Before the fix the first two cases failed on the first round with the unique violation.

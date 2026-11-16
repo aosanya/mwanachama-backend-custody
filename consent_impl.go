@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
 	"github.com/aosanya/mwanachama-backend-shared/specstore"
@@ -41,6 +42,12 @@ func (s *ConsentStore) CreateVersion(ctx context.Context, v models.TextVersion) 
 		return models.TextVersion{}, classify(err)
 	}
 	return v, nil
+}
+
+func (s *ConsentStore) DeleteDraft(ctx context.Context, id string) error {
+	err := s.db.WithContext(ctx).
+		Exec("DELETE FROM ? WHERE id = ? AND published_at IS NULL", clause.Table{Name: s.st.Table(RoleConsentVersion)}, id).Error
+	return classify(err)
 }
 
 func (s *ConsentStore) PublishVersion(ctx context.Context, id, publishedBy string, now string) (models.TextVersion, error) {

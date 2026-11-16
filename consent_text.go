@@ -79,6 +79,7 @@ func (m *CustodyManager) PublishConsentText(ctx context.Context, in ConsentTextI
 	}
 	published, err := m.consent.PublishVersion(ctx, draft.ID, publishedBy, models.Now())
 	if err != nil {
+		_ = m.consent.DeleteDraft(context.WithoutCancel(ctx), draft.ID)
 		return models.TextVersion{}, err
 	}
 	published.PublishedBy = ""
