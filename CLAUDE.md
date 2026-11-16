@@ -77,8 +77,10 @@ impossible.
 `spec` has no auto-increment, so the value comes from a Postgres `SEQUENCE`
 where there is one and from the table's high-water mark on sqlite, which is
 tests only and single-writer there. The id must increase with time because
-both logs order by `occurred_at DESC, id DESC` and instants are stored to the
-second, so the id is the tiebreaker within one second rather than decoration.
+both logs order by `occurred_at DESC, id DESC`, and the id is the tiebreaker
+for instants that are equal rather than decoration. Instants are stored to the
+nanosecond since hub bff780fa (see
+[documentation/3. implementation/hub-copy-diff.md](documentation/3.%20implementation/hub-copy-diff.md)).
 
 **Timestamps are RFC 3339 strings, not `time.Time`.** `spec.TypeTimestamp`
 stores as text and `specstore`'s codec has no arm for `time.Time` — it would
