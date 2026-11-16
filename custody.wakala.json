@@ -1,0 +1,13 @@
+{
+  "module": "custody",
+  "domain": "wakala",
+  "instance": "app",
+  "objects": [
+    { "role": "structure_act", "name": "structure_act", "table": "structure_acts", "description": "What a group's leadership did, in the group's own record." },
+    { "role": "event", "name": "custody_event", "table": "custody_events", "description": "The audit trail of everything done to personal data as data." },
+    { "role": "export_job", "name": "export_job", "table": "export_jobs", "description": "An export build: a register, or one person's own data under a request to see it." },
+    { "role": "contact_read", "name": "contact_read", "table": "contact_reads", "description": "An operator viewing a phone number, shown back to the person it belongs to." },
+    { "role": "consent_version", "name": "consent_text_version", "table": "consent_text_versions", "description": "One rendering of a consent text, in one language." },
+    { "role": "consent_record", "name": "consent_record", "table": "consent_records", "description": "A person's acceptance of a consent text, stamped with the version and language they saw." }
+  ]
+}

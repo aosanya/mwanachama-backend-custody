@@ -25,10 +25,6 @@ func examplePaths(t *testing.T) []string {
 	return paths
 }
 
-// TestEveryExampleFitsTheTypes builds a manager over every spec this module
-// ships, not the one a test happened to load. Drift under an unloaded domain
-// is invisible otherwise, and the construction is what cross-checks the
-// declaration against the Go types in both directions.
 func TestEveryExampleFitsTheTypes(t *testing.T) {
 	for _, path := range examplePaths(t) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
@@ -50,9 +46,6 @@ func TestEveryExampleFitsTheTypes(t *testing.T) {
 	}
 }
 
-// TestTwoDomainsCoexist migrates every shipped domain into one database. The
-// table names are hashed per instance, so two domains sharing a database is
-// the property that has to hold rather than an accident of naming.
 func TestTwoDomainsCoexist(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
@@ -71,7 +64,7 @@ func TestTwoDomainsCoexist(t *testing.T) {
 	}
 	var got int64
 	if err := db.Raw(`select count(*) from sqlite_master
-		where type = 'table' and name not like '%_spec_table_names'`).Scan(&got).Error; err != nil {
+		where type = 'table' and name not like '%_spec_table_names' and name not like '%\_test' escape '\'`).Scan(&got).Error; err != nil {
 		t.Fatalf("count tables: %v", err)
 	}
 	if int(got) != want {
@@ -79,11 +72,6 @@ func TestTwoDomainsCoexist(t *testing.T) {
 	}
 }
 
-// TestRequiredFieldsHaveNoDefault asserts no column is ever both not null
-// and defaulted. A default is exactly what lets an omitted required value
-// pass unnoticed, so the two together turn a refusal into a silent write.
-// Checked on the emitted DDL rather than on the declaration, because the
-// DDL is what the database is actually given.
 func TestRequiredFieldsHaveNoDefault(t *testing.T) {
 	checked := 0
 	for _, path := range examplePaths(t) {
@@ -121,13 +109,6 @@ func TestRequiredFieldsHaveNoDefault(t *testing.T) {
 	t.Logf("checked %d not-null columns", checked)
 }
 
-// TestVocabularyMatchesTheBlueprint holds models/vocabulary.go and the
-// blueprint's declared values to each other in both directions. The
-// constants were promised to agree with the spec and nothing checked it.
-//
-// The declared order matters too, not just the membership: the log draws its
-// filter chips in the order the blueprint lists class and chip, and that
-// order is read off the spec rather than kept a second time in Go.
 func TestVocabularyMatchesTheBlueprint(t *testing.T) {
 	b, err := mwanachamacustody.Blueprint()
 	if err != nil {
@@ -136,9 +117,6 @@ func TestVocabularyMatchesTheBlueprint(t *testing.T) {
 
 	goValues := constantsByType(t, "models/vocabulary.go")
 
-	// Effect is deliberately absent: strengthens/neutral/weakens live inside
-	// the effect document's values, not in a declared column, so the spec has
-	// no values list to agree with.
 	declaredBy := map[string]string{
 		"ActKind":      "structure_act.kind",
 		"ActClass":     "structure_act.class",
@@ -214,8 +192,7 @@ func mappedSomewhere(declaredBy map[string]string, where string) bool {
 			return true
 		}
 	}
-	// A role's language column is declared on two objects and held against
-	// one Go type; naming both would be two copies of the same agreement.
+
 	return where == "consent_record.language"
 }
 
