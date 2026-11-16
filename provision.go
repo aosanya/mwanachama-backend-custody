@@ -25,7 +25,7 @@ func createSequences(db *gorm.DB, s *spec.Spec) error {
 		}
 		name := sequenceFor(role)
 		if err := db.Exec("CREATE SEQUENCE IF NOT EXISTS " + name).Error; err != nil {
-			return fmt.Errorf("custody: provision: %s: %w", name, err)
+			return fmt.Errorf("mwanachamacustody: provision: %s: %w", name, err)
 		}
 	}
 	return nil
