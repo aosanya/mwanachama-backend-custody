@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"sync"
 	"testing"
 
 	"gorm.io/driver/postgres"
@@ -228,5 +229,52 @@ func TestDuplicateNaturalKeyIsAConflictOnPostgres(t *testing.T) {
 	}
 	if !errors.Is(err, mwanachamacustody.ErrConflict) {
 		t.Fatalf("second CreateVersion returned %v, want ErrConflict", err)
+	}
+}
+
+func TestConsentTextPublishesAtOnceLeaveOneInForceOnPostgres(t *testing.T) {
+	const managerCount = 4
+	const senders = 8
+	db, s := newPostgres(t)
+	managers := make([]*mwanachamacustody.CustodyManager, managerCount)
+	for i := range managers {
+		var err error
+		managers[i], err = mwanachamacustody.NewCustodyManager(db, s, mwanachamacustody.SystemClock, nil)
+		if err != nil {
+			t.Fatalf("NewCustodyManager: %v", err)
+		}
+	}
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make([]error, senders)
+	for i := 0; i < senders; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			_, errs[i] = managers[i%managerCount].PublishConsentText(context.Background(), mwanachamacustody.ConsentTextInput{Text: "x"}, "staff-1")
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("sender %d: %v", i, err)
+		}
+	}
+	rows, err := managers[0].ListConsentVersions(context.Background(), "", "")
+	if err != nil {
+		t.Fatalf("ListConsentVersions: %v", err)
+	}
+	inForce := 0
+	for _, row := range rows {
+		if row.InForce {
+			inForce++
+		}
+	}
+	if len(rows) != senders || inForce != 1 {
+		t.Fatalf("rows = %d, in force = %d, want %d and 1", len(rows), inForce, senders)
 	}
 }

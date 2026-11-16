@@ -12,8 +12,8 @@ Two publishes at the same moment behave like two publishes one after the other: 
 
 ## How
 
-- One mutex per manager serialises the whole draft-and-publish, so within one server process the labels are numbered in the order the publishes run and the one published last is the highest number.
-- When the draft insert still hits the unique index (a second server process on the same database), the count is read again and the draft is numbered again, up to five attempts. A conflict that survives the attempts is returned as `ErrConflict`.
+- One mutex per manager serialises the whole draft-and-publish, so within one server process the labels are numbered in the order the publishes run and the one published last is the highest number. Across server processes this does not hold: the in-force version is the one published last, which is not necessarily the highest number.
+- When the draft insert still hits the unique index (a second server process on the same database), the versions are read again and the draft is numbered again, up to twenty attempts, with a random wait before each repeat that doubles from 2 ms up to a cap of 50 ms and ends early when the request is cancelled. A conflict that survives the attempts is returned as `ErrConflict`.
 - `ErrConflict` is mapped to 409 in `Sentinels` and in the `errors` table of `custody.operations.json`, so a conflict on any create is a clean refusal and never "internal error". The test that recorded DEV-1696 as a 500 now asserts the 409.
 - On Postgres, `PublishVersion` takes `pg_advisory_xact_lock` on the scope and language before it supersedes, then re-reads the version, so two transactions cannot both leave a version in force. SQLite writes are already one at a time. The Postgres branch is only reached with a Postgres database; the `integration` build tag test file is where it would be exercised.
 
@@ -34,6 +34,16 @@ Hub issue CU10. The next label is `"v"` plus the highest number among the labels
 Hub issue CU11. The text of `ErrConflict` carries the fields of the unique index that was hit and nothing else: `already exists: scope, version, language` for a repeated natural key, `already exists: id` for a repeated id. The generated table name, the index name, the values and the driver code (2067, 1555) never reach the caller, over HTTP or in the MCP tool answer. `classify` in `errors.go` takes the column list out of the SQLite message and out of the `Key (...)=` part of the Postgres detail; the columns are the declared field names, so no table name is written anywhere in the code. A violation that names an index instead of columns, or a Postgres error without a detail, answers the plain `already exists`.
 
 `routes/consent_conflict_body_test.go` posts the same version twice and the same id twice and asserts the body has no `mwanachama_` and no `(number)`; `routes/consent_routes_test.go` asserts the whole message; `errors_unique_fields_test.go` covers the Postgres detail and the index case without a Postgres. The two route tests fail on the commit before the change.
+
+## Several server processes
+
+Hub issue CU12. The mutex belongs to one manager, so with several managers or processes on one database only the retry and, on Postgres, the advisory lock protect a publish. Three consequences are known and stated here.
+
+- The retry used to give up after five attempts with no wait, and six managers on one SQLite file with 24 publishes at once returned `ErrConflict` to a sender in nearly every run under the race detector. The attempts are now twenty with the jittered wait above, and the same probe passes 15 rounds in each of eight consecutive runs.
+- Drafting a number and publishing it are separate steps, so process A can draft v3, process B draft v4 and publish it, and A then publish v3: v3 is in force while v4 is published and superseded. The in-force version is the one published last, not necessarily the highest number. Numbering was not moved into the publish transaction because that changes the store contract of `PublishVersion` and `CreateVersion`, which is a larger change than stating the rule; the tests assert exactly one in force, never that it is the highest, for the several-process cases.
+- The `pg_advisory_xact_lock` branch in `PublishVersion` is reached only on Postgres. `postgres_integration_test.go`, under the `integration` tag, has `TestConsentTextPublishesAtOnceLeaveOneInForceOnPostgres`, which publishes 8 at once from four managers and asserts that every publish succeeds and exactly one is in force. It compiles and vets with the tag and skips without `POSTGRES_URL`. It was not run, because no Postgres was used for this change.
+
+`consent_text_many_managers_test.go` is the probe: six managers on one SQLite file, 24 publishes at once, 15 rounds, no error allowed. Without the race detector it passes on the commit before the change; with `-race`, which is how the suite is run, it failed with the conflict in each of six runs, within the first eleven rounds.
 
 ## Proof
 

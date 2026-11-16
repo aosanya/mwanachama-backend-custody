@@ -3,8 +3,10 @@ package mwanachamacustody
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/aosanya/mwanachama-backend-custody/models"
@@ -12,7 +14,9 @@ import (
 
 const (
 	MaxConsentTextLength   = 2000
-	maxConsentTextAttempts = 5
+	maxConsentTextAttempts = 20
+	consentTextBackoffBase = 2 * time.Millisecond
+	consentTextBackoffCap  = 50 * time.Millisecond
 	consentTextClauseKey   = "consent"
 )
 
@@ -76,6 +80,9 @@ func (m *CustodyManager) PublishConsentText(ctx context.Context, in ConsentTextI
 		if !errors.Is(err, ErrConflict) || attempt+1 >= maxConsentTextAttempts {
 			return models.TextVersion{}, err
 		}
+		if err := waitBeforeRetry(ctx, attempt); err != nil {
+			return models.TextVersion{}, err
+		}
 	}
 	published, err := m.consent.PublishVersion(ctx, draft.ID, publishedBy, models.Now())
 	if err != nil {
@@ -84,6 +91,21 @@ func (m *CustodyManager) PublishConsentText(ctx context.Context, in ConsentTextI
 	}
 	published.PublishedBy = ""
 	return published, nil
+}
+
+func waitBeforeRetry(ctx context.Context, attempt int) error {
+	ceiling := consentTextBackoffBase << min(attempt, 6)
+	if ceiling > consentTextBackoffCap {
+		ceiling = consentTextBackoffCap
+	}
+	timer := time.NewTimer(rand.N(ceiling))
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (m *CustodyManager) draftNextConsentVersion(ctx context.Context, scope models.ConsentScope, language models.Language, text string) (models.TextVersion, error) {
