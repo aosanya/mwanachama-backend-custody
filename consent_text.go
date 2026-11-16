@@ -93,10 +93,21 @@ func (m *CustodyManager) draftNextConsentVersion(ctx context.Context, scope mode
 	}
 	return m.consent.CreateVersion(ctx, models.TextVersion{
 		Scope:    scope,
-		Version:  "v" + strconv.Itoa(len(existing)+1),
+		Version:  "v" + strconv.Itoa(highestVersionNumber(existing)+1),
 		Language: language,
 		Clauses:  []models.Clause{{Key: consentTextClauseKey, Text: text}},
 	})
+}
+
+func highestVersionNumber(versions []models.TextVersion) int {
+	highest := 0
+	for _, v := range versions {
+		n, err := strconv.Atoi(strings.TrimPrefix(v.Version, "v"))
+		if err == nil && strings.HasPrefix(v.Version, "v") && n > highest {
+			highest = n
+		}
+	}
+	return highest
 }
 
 func consentScopeOrDefault(scope string) (models.ConsentScope, error) {

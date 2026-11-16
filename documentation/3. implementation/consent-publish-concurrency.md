@@ -23,6 +23,12 @@ Hub issue CU9. Drafting and publishing are two steps. When the publish fails (a 
 
 `consent_text_failed_publish_test.go` makes the first update fail once, then asserts that no row is left, that the next publish is v1 and that it is the only row and in force. On 0601f7f it fails with one leftover row.
 
+## Labels already taken
+
+Hub issue CU10. The next label is `"v"` plus the highest number among the labels of the form `v<number>` that already exist for the scope and language, plus one, and no longer the count of versions. A draft made by hand with `custody_create_consent_version` (a lone `v2`, a gap, a label such as `draft`) therefore never makes the next publish collide with it: with only a hand-made `v2` the next publish is `v3`. Labels that are not `v<number>` are ignored. Each attempt of the retry loop reads the versions again, so a second attempt only differs from the first when another process really took the label in between.
+
+`consent_text_taken_label_test.go` pre-creates `v2` and asserts that a publish succeeds as `v3` and is the one in force. On the commit before the change it fails with the conflict.
+
 ## Proof
 
 `consent_text_concurrent_test.go` sends 8 publishes at once, five rounds on a fresh database each, on a SQLite file with several connections and on an in-memory SQLite database with one connection, and once more across two managers on one database. All must succeed, the labels must be v1 to v8 with no repeat, and exactly one version, the highest, must be in force. Before the fix the first two cases failed on the first round with the unique violation.
