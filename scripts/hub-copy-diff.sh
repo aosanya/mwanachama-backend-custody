@@ -35,4 +35,6 @@ find "$work/hub" -name '*.go' -print0 | HUB_SHARED="$hub_shared" SHARED="$shared
 (cd "$repo" && go run ./scripts/hubdiff "$work/hub")
 
 cd "$work"
-diff -r backend hub | sed "s#^diff -r backend/#diff #"
+report="$(diff -r backend hub | sed "s#^diff -r backend/#diff #" || true)"
+[ -z "$report" ] || printf '%s\n' "$report"
+! printf '%s\n' "$report" | grep -qE '^(diff |Binary files |Only in hub)'
