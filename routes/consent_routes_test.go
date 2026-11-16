@@ -43,7 +43,7 @@ func TestCreateConsentVersion_HonorsCallerSuppliedID(t *testing.T) {
 	}
 }
 
-func TestCreateConsentVersion_DuplicateNaturalKeyReturns500NotConflict(t *testing.T) {
+func TestCreateConsentVersion_DuplicateNaturalKeyReturns409(t *testing.T) {
 	srv := newConsentTestServer(t)
 
 	body := `{"scope":"mechanics","version":"v1","language":"en"}`
@@ -52,11 +52,8 @@ func TestCreateConsentVersion_DuplicateNaturalKeyReturns500NotConflict(t *testin
 	}
 
 	status, out := postJSON(t, srv.URL+"/consent/versions", body)
-	if status != http.StatusInternalServerError {
-		t.Fatalf("DEV-1696 appears fixed (duplicate now maps to a real status) — got %d %+v; update this test to assert 409 instead", status, out)
-	}
-	if out["error"] != "internal error" {
-		t.Fatalf("expected the generic masked message, got %+v", out)
+	if status != http.StatusConflict {
+		t.Fatalf("duplicate natural key = %d %+v, want 409", status, out)
 	}
 }
 

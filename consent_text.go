@@ -2,6 +2,7 @@ package mwanachamacustody
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -10,8 +11,9 @@ import (
 )
 
 const (
-	MaxConsentTextLength = 2000
-	consentTextClauseKey = "consent"
+	MaxConsentTextLength   = 2000
+	maxConsentTextAttempts = 5
+	consentTextClauseKey   = "consent"
 )
 
 type ConsentVersionRow struct {
@@ -63,18 +65,17 @@ func (m *CustodyManager) PublishConsentText(ctx context.Context, in ConsentTextI
 		return models.TextVersion{}, err
 	}
 	language := consentLanguageOrDefault(string(in.Language))
-	existing, err := m.consent.ListVersions(ctx, scope, language)
-	if err != nil {
-		return models.TextVersion{}, err
-	}
-	draft, err := m.consent.CreateVersion(ctx, models.TextVersion{
-		Scope:    scope,
-		Version:  "v" + strconv.Itoa(len(existing)+1),
-		Language: language,
-		Clauses:  []models.Clause{{Key: consentTextClauseKey, Text: text}},
-	})
-	if err != nil {
-		return models.TextVersion{}, err
+	m.publishText.Lock()
+	defer m.publishText.Unlock()
+	var draft models.TextVersion
+	for attempt := 0; ; attempt++ {
+		draft, err = m.draftNextConsentVersion(ctx, scope, language, text)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, ErrConflict) || attempt+1 >= maxConsentTextAttempts {
+			return models.TextVersion{}, err
+		}
 	}
 	published, err := m.consent.PublishVersion(ctx, draft.ID, publishedBy, models.Now())
 	if err != nil {
@@ -82,6 +83,19 @@ func (m *CustodyManager) PublishConsentText(ctx context.Context, in ConsentTextI
 	}
 	published.PublishedBy = ""
 	return published, nil
+}
+
+func (m *CustodyManager) draftNextConsentVersion(ctx context.Context, scope models.ConsentScope, language models.Language, text string) (models.TextVersion, error) {
+	existing, err := m.consent.ListVersions(ctx, scope, language)
+	if err != nil {
+		return models.TextVersion{}, err
+	}
+	return m.consent.CreateVersion(ctx, models.TextVersion{
+		Scope:    scope,
+		Version:  "v" + strconv.Itoa(len(existing)+1),
+		Language: language,
+		Clauses:  []models.Clause{{Key: consentTextClauseKey, Text: text}},
+	})
 }
 
 func consentScopeOrDefault(scope string) (models.ConsentScope, error) {

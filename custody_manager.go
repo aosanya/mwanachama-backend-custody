@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"gorm.io/gorm"
 
@@ -31,6 +32,8 @@ type CustodyManager struct {
 	ledger   *DBWithdrawalLedger
 	clock    Clock
 	resolver ScopeResolver
+
+	publishText sync.Mutex
 }
 
 func NewCustodyManager(db *gorm.DB, s *spec.Spec, clock Clock, resolver ScopeResolver) (*CustodyManager, error) {

@@ -388,6 +388,7 @@
   "errors": {
     "ErrNotFound": 404,
     "ErrAlreadyPublished": 409,
+    "ErrConflict": 409,
     "ErrUnknownScope": 400,
     "ErrUnknownActClass": 400,
     "ErrUnknownEventChip": 400,

@@ -54,6 +54,15 @@ func (s *ConsentStore) PublishVersion(ctx context.Context, id, publishedBy strin
 		if err := s.st.Take(tx.Table(table).Where("id = ?", id), RoleConsentVersion, &current, models.ErrNotFound); err != nil {
 			return err
 		}
+		if tx.Dialector.Name() == "postgres" {
+			lockKey := string(current.Scope) + "/" + string(current.Language)
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+				return err
+			}
+			if err := s.st.Take(tx.Table(table).Where("id = ?", id), RoleConsentVersion, &current, models.ErrNotFound); err != nil {
+				return err
+			}
+		}
 		if current.PublishedAt != nil {
 			return models.ErrAlreadyPublished
 		}

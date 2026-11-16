@@ -15,6 +15,7 @@ type Tool = dispatch.Tool
 
 var Sentinels = map[string]error{
 	"ErrNotFound":            mwanachamacustody.ErrNotFound,
+	"ErrConflict":            mwanachamacustody.ErrConflict,
 	"ErrConsentRequired":     mwanachamacustody.ErrConsentRequired,
 	"ErrConsentWithdrawn":    mwanachamacustody.ErrConsentWithdrawn,
 	"ErrAlreadyPublished":    mwanachamacustody.ErrAlreadyPublished,
