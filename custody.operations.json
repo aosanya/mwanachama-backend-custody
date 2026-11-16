@@ -264,6 +264,22 @@
       ],
       "returns": [{ "body": true }]
     },
+    "get_my_consent": {
+      "method": "GET",
+      "path": "/consent/mine",
+      "call": "GetMyConsent",
+      "action": "custody.consent.mine",
+      "title": "Read the caller's own consent state",
+      "description": "Says whether the caller has agreed, has withdrawn since agreeing, or has not agreed yet, with when and to which mechanics version. The actor is the authenticated caller and never a path or body field: nobody reads another person's consent state.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "actor_id",
+          "description": "The authenticated caller, whose state is read."
+        }
+      ],
+      "returns": [{ "body": true }]
+    },
     "publish_consent_version": {
       "method": "POST",
       "path": "/consent/versions/{versionID}/publish",
