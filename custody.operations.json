@@ -248,7 +248,7 @@
       "action": "custody.consent.give",
       "status": 201,
       "title": "Give the caller's consent",
-      "description": "Records that the caller agreed to the consent sheet now in force, in the language given (English when left out). The actor is the authenticated caller and never a body field: nobody agrees for someone else. Acts that need consent are admitted from this moment, including after an earlier withdrawal. Refused with a conflict while no mechanics version is in force in that language.",
+      "description": "Records that the caller agreed to the consent sheet now in force, in the language given (the agency's content default language when left out). The actor is the authenticated caller and never a body field: nobody agrees for someone else. Acts that need consent are admitted from this moment, including after an earlier withdrawal. Refused with a conflict while no mechanics version is in force in that language.",
       "args": [
         {
           "from": "body",
