@@ -589,14 +589,9 @@
           "description": "The structure the record is stamped at, resolved from the actor's live registrations before the record is written."
         },
         {
-          "name": "channel",
-          "type": "string",
-          "description": "How the agreement was given when someone else recorded it for the actor: paper or in_person. Empty when the actor agreed signed in."
-        },
-        {
           "name": "recorded_by",
           "type": "string",
-          "description": "Who recorded the agreement on the actor's word. Empty when the actor agreed signed in."
+          "description": "The clerk who recorded the agreement given on paper. Empty when the actor agreed signed in."
         }
       ],
       "indexes": [

@@ -284,13 +284,13 @@
       "action": "custody.consent.record",
       "tool": "custody_record_paper_consent",
       "status": 201,
-      "title": "Record a person's consent given on paper or in person",
-      "description": "Records that the named person agreed to the consent sheet now in force, on paper or in person, so acts that need their consent can be filed for them although they have no sign-in. The channel is required and is paper or in_person. The person is the actor_id of the body and the one who records it is the authenticated caller, kept on the record and never a body field. A person whose standing agreement is for the version now in force gets that record back and nothing new is written. Refused with a conflict while no mechanics version is in force in that language.",
+      "title": "Record a person's consent given on paper",
+      "description": "Records that the named person agreed to the consent sheet now in force, on paper, so acts that need their consent can be filed for them although they have no sign-in. The person is the actor_id of the body; the clerk who records it is the authenticated caller, kept on the record with the date and the version read, and never a body field. A person whose standing agreement is for the version now in force gets that record back and nothing new is written. Refused with a conflict while no mechanics version is in force in that language.",
       "args": [
         {
           "from": "body",
           "whole": true,
-          "description": "The person's actor_id, the channel (paper or in_person), and optionally the language the sheet was read in and the structure the record is stamped at."
+          "description": "The person's actor_id, and optionally the language the sheet was read in and the structure the record is stamped at."
         },
         {
           "from": "caller",

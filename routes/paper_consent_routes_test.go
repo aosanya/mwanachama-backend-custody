@@ -15,12 +15,12 @@ func TestPaperConsentRouteRecordsConsentForTheNamedPerson(t *testing.T) {
 	cm, _ := newManager(t, nil)
 	publishMechanics(t, cm)
 	srv := serve(t, cm, "clerk-1")
-	status, out := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9","channel":"paper"}`)
+	status, out := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9"}`)
 	if status != http.StatusCreated {
 		t.Fatalf("status = %d (%v)", status, out)
 	}
-	if out["actor_id"] != "resident-9" || out["channel"] != "paper" || out["recorded_by"] != "clerk-1" {
-		t.Fatalf("record = %v, want resident-9 on paper recorded by clerk-1", out)
+	if out["actor_id"] != "resident-9" || out["recorded_by"] != "clerk-1" || out["mechanics_version_id"] == nil || out["agreed_at"] == nil {
+		t.Fatalf("record = %v, want resident-9 recorded by clerk-1 with the version read and the date", out)
 	}
 	if err := cm.ConsentGate().Check(context.Background(), "resident-9"); err != nil {
 		t.Fatalf("Check after the clerk recorded consent = %v", err)
@@ -34,8 +34,8 @@ func TestPaperConsentRouteRepeatedAnswersTheStandingRecord(t *testing.T) {
 	cm, _ := newManager(t, nil)
 	publishMechanics(t, cm)
 	srv := serve(t, cm, "clerk-1")
-	_, first := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9","channel":"in_person"}`)
-	status, second := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9","channel":"paper"}`)
+	_, first := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9"}`)
+	status, second := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9"}`)
 	if status != http.StatusCreated {
 		t.Fatalf("second status = %d (%v)", status, second)
 	}
@@ -46,37 +46,16 @@ func TestPaperConsentRouteRepeatedAnswersTheStandingRecord(t *testing.T) {
 	if err != nil || len(records) != 1 {
 		t.Fatalf("records = %d (%v), want 1", len(records), err)
 	}
-	if records[0].Channel != "in_person" {
-		t.Fatalf("channel = %q, want the first channel kept", records[0].Channel)
-	}
-}
-
-func TestPaperConsentRouteRefusesAChannelThatIsNotPaperOrInPerson(t *testing.T) {
-	cm, _ := newManager(t, nil)
-	publishMechanics(t, cm)
-	srv := serve(t, cm, "clerk-1")
-	for _, body := range []string{
-		`{"actor_id":"resident-9","channel":"phone"}`,
-		`{"actor_id":"resident-9"}`,
-	} {
-		status, out := postJSON(t, srv.URL+"/consent/recorded", body)
-		if status != http.StatusBadRequest {
-			t.Fatalf("%s: status = %d (%v), want 400", body, status, out)
-		}
-	}
-	if err := cm.ConsentGate().Check(context.Background(), "resident-9"); err == nil {
-		t.Fatal("a refused request still recorded consent")
-	}
 }
 
 func TestPaperConsentRouteRefusesWithoutAPersonOrACaller(t *testing.T) {
 	cm, _ := newManager(t, nil)
 	publishMechanics(t, cm)
-	status, out := postJSON(t, serve(t, cm, "clerk-1").URL+"/consent/recorded", `{"channel":"paper"}`)
+	status, out := postJSON(t, serve(t, cm, "clerk-1").URL+"/consent/recorded", `{}`)
 	if status != http.StatusBadRequest {
 		t.Fatalf("no person: status = %d (%v), want 400", status, out)
 	}
-	status, out = postJSON(t, serve(t, cm, "").URL+"/consent/recorded", `{"actor_id":"resident-9","channel":"paper"}`)
+	status, out = postJSON(t, serve(t, cm, "").URL+"/consent/recorded", `{"actor_id":"resident-9"}`)
 	if status < 400 || status >= 500 {
 		t.Fatalf("no caller: status = %d (%v), want a 4xx", status, out)
 	}
@@ -84,7 +63,7 @@ func TestPaperConsentRouteRefusesWithoutAPersonOrACaller(t *testing.T) {
 
 func TestPaperConsentRouteConflictsWhileNoMechanicsIsInForce(t *testing.T) {
 	cm, _ := newManager(t, nil)
-	status, out := postJSON(t, serve(t, cm, "clerk-1").URL+"/consent/recorded", `{"actor_id":"resident-9","channel":"paper"}`)
+	status, out := postJSON(t, serve(t, cm, "clerk-1").URL+"/consent/recorded", `{"actor_id":"resident-9"}`)
 	if status != http.StatusConflict {
 		t.Fatalf("status = %d (%v), want 409", status, out)
 	}
@@ -95,11 +74,11 @@ func TestPaperConsentIsRecordedAfterAWithdrawal(t *testing.T) {
 	publishMechanics(t, cm)
 	ctx := context.Background()
 	srv := serve(t, cm, "clerk-1")
-	postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9","channel":"paper"}`)
+	postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9"}`)
 	if _, err := cm.WithdrawConsent(ctx, "resident-9"); err != nil {
 		t.Fatalf("WithdrawConsent: %v", err)
 	}
-	status, out := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9","channel":"paper"}`)
+	status, out := postJSON(t, srv.URL+"/consent/recorded", `{"actor_id":"resident-9"}`)
 	if status != http.StatusCreated {
 		t.Fatalf("status = %d (%v)", status, out)
 	}
@@ -121,7 +100,7 @@ func TestPaperConsentRouteAsksForTheRecordActionAndRefusesWithout(t *testing.T) 
 		mux.HandleFunc(rt.Pattern(""), rt.Handler)
 	}
 	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/consent/recorded", strings.NewReader(`{"actor_id":"resident-9","channel":"paper"}`)))
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/consent/recorded", strings.NewReader(`{"actor_id":"resident-9"}`)))
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("answered %d %s", rec.Code, rec.Body.String())
 	}

@@ -6,14 +6,8 @@ import (
 	"github.com/aosanya/mwanachama-backend-custody/models"
 )
 
-const (
-	ChannelPaper    = "paper"
-	ChannelInPerson = "in_person"
-)
-
 type RecordPaperConsentInput struct {
 	ActorID     string          `json:"actor_id"`
-	Channel     string          `json:"channel"`
 	RecordedBy  string          `json:"recorded_by"`
 	StructureID string          `json:"structure_id"`
 	Language    models.Language `json:"language"`
@@ -25,9 +19,6 @@ func (m *CustodyManager) RecordPaperConsent(ctx context.Context, in RecordPaperC
 	}
 	if in.RecordedBy == "" {
 		return models.Record{}, invalidValue("the one recording the consent is required")
-	}
-	if in.Channel != ChannelPaper && in.Channel != ChannelInPerson {
-		return models.Record{}, invalidValue("channel must be %q or %q", ChannelPaper, ChannelInPerson)
 	}
 	if in.Language == "" {
 		in.Language = models.LanguageEnglish
@@ -48,7 +39,6 @@ func (m *CustodyManager) RecordPaperConsent(ctx context.Context, in RecordPaperC
 		StructureID: in.StructureID,
 		Language:    in.Language,
 		AgreedAt:    models.FormatTime(agreedAt),
-		Channel:     in.Channel,
 		RecordedBy:  in.RecordedBy,
 	})
 }

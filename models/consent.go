@@ -34,6 +34,5 @@ type Record struct {
 	AgreedAt           string   `json:"agreed_at"`
 	Language           Language `json:"language"`
 	StructureID        string   `json:"structure_id"`
-	Channel            string   `json:"channel,omitempty"`
 	RecordedBy         string   `json:"recorded_by,omitempty"`
 }
