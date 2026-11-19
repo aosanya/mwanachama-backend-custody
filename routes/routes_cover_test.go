@@ -13,7 +13,7 @@ import (
 	"github.com/aosanya/mwanachama-backend-custody/routes"
 )
 
-const declaredRouteCount = 12
+const declaredRouteCount = 19
 
 func getStatus(t *testing.T, base, path string) (int, string) {
 	t.Helper()
@@ -34,30 +34,28 @@ func muxOf(rs []routes.Route) *http.ServeMux {
 	return mux
 }
 
-func TestEveryBuilderYieldsTheTwelveDeclaredAddresses(t *testing.T) {
+func TestEveryBuilderYieldsTheNineteenDeclaredAddresses(t *testing.T) {
 	cm, _ := newManager(t, nil)
 	built, err := routes.Build(cm)
 	if err != nil || len(built) != declaredRouteCount {
 		t.Fatalf("Build = %d routes, %v; want %d", len(built), err, declaredRouteCount)
 	}
-	with, err := routes.BuildWith(cm, nil)
-	if err != nil || len(with) != declaredRouteCount {
-		t.Fatalf("BuildWith = %d routes, %v", len(with), err)
+	if n := len(routes.RoutesFor(cm, routes.Mount{})); n != declaredRouteCount {
+		t.Fatalf("RoutesFor = %d", n)
 	}
-	if n := len(routes.Routes(cm)); n != declaredRouteCount {
-		t.Fatalf("Routes = %d", n)
-	}
-	if n := len(routes.RoutesWith(cm, nil)); n != declaredRouteCount {
-		t.Fatalf("RoutesWith = %d", n)
-	}
-	if n := len(routes.Shape()); n != declaredRouteCount {
-		t.Fatalf("Shape = %d", n)
+	shape, err := routes.Table.Shape()
+	if err != nil || len(shape) != declaredRouteCount {
+		t.Fatalf("Shape = %d routes, %v", len(shape), err)
 	}
 }
 
 func TestShapeCarriesEveryActionWithoutAHandler(t *testing.T) {
+	shape, err := routes.Table.Shape()
+	if err != nil {
+		t.Fatalf("Shape: %v", err)
+	}
 	var actions []string
-	for _, rt := range routes.Shape() {
+	for _, rt := range shape {
 		if rt.Action == "" {
 			t.Errorf("shape route %s has no action", rt.Pattern(""))
 		}
@@ -74,34 +72,22 @@ func TestShapeCarriesEveryActionWithoutAHandler(t *testing.T) {
 	}
 }
 
-func TestNothingIsPublicSoSplitGatesEveryRouteAndPublicRoutesIsEmpty(t *testing.T) {
+func TestSplitGatesEveryRoute(t *testing.T) {
 	cm, _ := newManager(t, nil)
-	if len(routes.AnonymousActions) != 0 {
-		t.Fatalf("AnonymousActions = %v, want none", routes.AnonymousActions)
-	}
-	split := routes.Split(cm)
+	split := routes.Split(cm, routes.Mount{})
 	if len(split.Anonymous) != 0 || len(split.Gated) != declaredRouteCount {
 		t.Fatalf("Split = %d anonymous, %d gated", len(split.Anonymous), len(split.Gated))
 	}
-	if n := len(routes.PublicRoutes(cm)); n != 0 {
-		t.Fatalf("PublicRoutes = %d, want 0", n)
-	}
-	if n := len(routes.OperatorRoutes(cm, nil)); n != declaredRouteCount {
-		t.Fatalf("OperatorRoutes = %d, want %d", n, declaredRouteCount)
-	}
-	if n := len(routes.SplitWith(cm, nil).Gated); n != declaredRouteCount {
-		t.Fatalf("SplitWith gated = %d", n)
-	}
 }
 
-func TestARefusedActionAnswers403AndNeverReachesTheManager(t *testing.T) {
+func TestARefusedActionNamesTheEventListAndAnswers403(t *testing.T) {
 	cm, _ := newManager(t, nil)
 	var asked []string
 	deny := func(_ context.Context, action string) error {
 		asked = append(asked, action)
 		return errors.New("no")
 	}
-	srv := httptest.NewServer(muxOf(routes.OperatorRoutes(cm, deny)))
+	srv := httptest.NewServer(muxOf(routes.RoutesFor(cm, routes.Mount{Caller: callerIs("operator-1"), Authorize: deny})))
 	t.Cleanup(srv.Close)
 
 	status, body := getStatus(t, srv.URL, "/custody-log")
@@ -116,7 +102,7 @@ func TestARefusedActionAnswers403AndNeverReachesTheManager(t *testing.T) {
 func TestAnAllowingAuthorizerLetsTheCallThrough(t *testing.T) {
 	cm, _ := newManager(t, nil)
 	allow := func(context.Context, string) error { return nil }
-	srv := httptest.NewServer(muxOf(routes.RoutesWith(cm, allow)))
+	srv := httptest.NewServer(muxOf(routes.RoutesFor(cm, routes.Mount{Caller: callerIs("operator-1"), Authorize: allow})))
 	t.Cleanup(srv.Close)
 
 	if status, body := getStatus(t, srv.URL, "/custody-log"); status != http.StatusOK {
